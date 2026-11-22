@@ -206,3 +206,13 @@
   .conditions-chip strong{font-size:8px}
   .conditions-chip span{font-size:9px}
 }
+
+/* v0.5.0: three stages remain visible without crowding a phone portrait UI. */
+#startModal .route-picker{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+#startModal .route-option{min-height:80px;padding:9px 7px}
+#startModal .route-option strong{font-size:9px;line-height:1.35;overflow-wrap:anywhere}
+#startModal .route-option small{font-size:9px;line-height:1.25}
+@media(max-height:690px){
+  #startModal .route-option{min-height:65px;padding:7px 6px}
+  #startModal .route-option strong{font-size:8.5px}
+}
