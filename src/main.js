@@ -159,8 +159,9 @@ function simulate(dt){
       boat.vy*=Math.exp(-dt*2.4*severity);
       boat.yawRate*=Math.exp(-dt*.8*severity);
     }
-    if(obstruction.depth>.35&&collisionCooldown<=0&&Math.hypot(prev.vx,prev.vy)>.45)
-      addPenalty(obstruction.depth>1.05?5:2,obstruction.name+' scrape');
+    // A stone wharf is unforgiving even to a shallow glancing impact.
+    if(obstruction.depth>.10&&collisionCooldown<=0&&Math.hypot(prev.vx,prev.vy)>.65)
+      addPenalty(obstruction.depth>.80?5:2,obstruction.name+' impact');
   }
   // Bridges are narrow passages: test the entire hull while crossing.
   for(const bridge of getActiveCourse().bridges){
