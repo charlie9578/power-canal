@@ -64,3 +64,12 @@ test('storage quota and private-mode failures do not erase recorded times',()=>{
   assert.equal(saveGhost(throwing,g),false);
   assert.equal(readGhost(throwing,'classic'),null);
 });
+
+test('third stage maintains independent validated ghost recording',()=>{
+  const store=memory();
+  const g=makeGhost('technical',3,3,[[0,0,60,0],[1,16,-130,1],[3,35,-405,0]]);
+  assert.ok(g&&validGhost(g,'technical'));
+  assert.equal(saveGhost(store,g),true);
+  assert.deepEqual(readGhost(store,'technical'),g);
+  assert.equal(readGhost(store,'classic'),null);
+});
