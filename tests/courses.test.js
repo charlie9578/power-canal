@@ -14,7 +14,7 @@ function inLab(fn){
 }
 
 test('the original stage remains the default, with an independent second route',()=>{
-  assert.deepEqual(COURSES.map(c=>c.id),['classic','test']);
+  assert.deepEqual(COURSES.map(c=>c.id),['classic','test','technical']);
   const old=getActiveCourse().id;
   try{
     setActiveCourse('classic');
@@ -26,6 +26,9 @@ test('the original stage remains the default, with an independent second route',
     assert.equal(getActiveCourse().bridges.length,2);
     assert.throws(()=>setActiveCourse('missing'),RangeError);
     assert.equal(getActiveCourse().id,'test');
+    setActiveCourse('technical');
+    assert.equal(LOCK.centreX,35);
+    assert.equal(getActiveCourse().obstacles.length,1);
   }finally{setActiveCourse(old);}
 });
 
