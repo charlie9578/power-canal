@@ -1,4 +1,6 @@
 import { BOAT, clamp, createBoat, stepBoat } from './physics.js';
+import { createWakeMark, pruneWakeMarks, travelAngle, WAKE_LIFETIME } from './water.js';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js';
 import { WIDTH, START_Y, LOCK, centreAt, halfWidthAt, checkBanks, insideLock, pointOnHull } from './course.js';
 
 const $=id=>document.getElementById(id);
@@ -12,6 +14,7 @@ const ui={
 let boat, controls, elapsed, penalties, running=false, finished=false, paused=false;
 let messageTime=0, message='', lockHold=0, collisionCooldown=0, contactTotal=0, last=0, accumulator=0;
 let camera={x:0,y:0}, width=0,height=0,scale=5.4, clock=0;
+let wakeMarks=[],lastWakeAt=0;
 const STEP=1/60, MAX_DT=.05;
 const bridgeYs=[-130,-275];
 let best=null;
@@ -19,7 +22,7 @@ try{best=Number(localStorage.getItem('power-canal-best'))||null;}catch{}
 function formatTime(s){const m=Math.floor(s/60), secs=s-m*60;return String(m).padStart(2,'0')+':'+secs.toFixed(2).padStart(5,'0');}
 function reset(showStart=false){
   boat=createBoat(centreAt(START_Y),START_Y,0);
-  controls={throttle:0,tiller:0};elapsed=0;penalties=0;lockHold=0;
+  controls={throttle:0,tiller:0};wakeMarks=[];lastWakeAt=0;clock=0;elapsed=0;penalties=0;lockHold=0;
   contactTotal=0;collisionCooldown=0;running=!showStart;finished=false;paused=false;
   camera={x:boat.x,y:boat.y}; accumulator=0;message='';messageTime=0;
   ui.finish.classList.add('is-hidden');ui.start.classList.toggle('is-hidden',!showStart);
@@ -48,6 +51,14 @@ function simulate(dt){
   messageTime=Math.max(0,messageTime-dt);
   const prev={...boat};
   stepBoat(boat,controls,dt);
+  // Record disturbances in world coordinates so they remain in place as the
+  // boat changes heading. Waves gradually disappear after the boat has passed.
+  if(clock-lastWakeAt>0.24){
+    const mark=createWakeMark(boat,clock);
+    if(mark)wakeMarks.push(mark);
+    lastWakeAt=clock;
+    pruneWakeMarks(wakeMarks,clock);
+  }
   // Progressive bank resistance: slowing down against the bank is much better
   // than a bounce off an invisible rectangle.
   const bank=checkBanks(boat,BOAT.length,BOAT.beam);
@@ -99,11 +110,16 @@ function updateUI(){
   else{ui.course.textContent='FOLLOW THE CANAL · WATCH YOUR STERN';ui.hint.textContent='STOP INSIDE THE LOCK';}
   ui.feedback.textContent=messageTime>0?message:paused?'PAUSED':'';
 }
+function setThrottleNotch(notch){
+  controls.throttle=throttleFromNotch(notch);
+  renderControls();
+}
 function renderControls(){
-  const t=controls.throttle, r=controls.tiller;
-  ui.throttleThumb.style.top=(50-t*39)+'%';
-  ui.throttleTrack.setAttribute('aria-valuenow',String(Math.round(t*100)));
-  ui.throttleReadout.textContent=Math.abs(t)<.04?'N':(t>0?'FWD ':'REV ')+Math.round(Math.abs(t)*100)+'%';
+  const notch=clampNotch(controls.throttle*5),r=controls.tiller;
+  ui.throttleThumb.style.top=positionForNotch(notch)+'%';
+  ui.throttleTrack.setAttribute('aria-valuenow',String(notch));
+  ui.throttleTrack.setAttribute('aria-valuetext',labelForNotch(notch));
+  ui.throttleReadout.textContent=labelForNotch(notch);
   ui.tillerStick.style.transform='translateX(-50%) rotate('+r*52+'deg)';
   ui.tillerPad.setAttribute('aria-valuenow',String(Math.round(r*100)));
   ui.tillerReadout.textContent=Math.abs(r)<.04?'CENTRE':(r<0?'PORT ':'STBD ')+Math.round(Math.abs(r)*100)+'%';
@@ -124,23 +140,31 @@ function trackPointer(element,compute,setter){
 }
 trackPointer(ui.throttleTrack,e=>{
   const rect=ui.throttleTrack.getBoundingClientRect();
-  return clamp((rect.top+rect.height*.5-e.clientY)/(rect.height*.39),-1,1);
-},v=>{controls.throttle=Math.abs(v)<.055?0:v;renderControls();});
+  return notchFromTrackPosition(e.clientY,rect.top,rect.height);
+},setThrottleNotch);
 trackPointer(ui.tillerPad,e=>{
   const rect=ui.tillerPad.getBoundingClientRect();
   return clamp((e.clientX-(rect.left+rect.width/2))/(rect.width*.43),-1,1);
 },v=>{controls.tiller=Math.abs(v)<.04?0:v;renderControls();});
 function keyInput(e){
   if(!running||paused)return;
-  const d=e.key==='ArrowUp'?['throttle',.08]:e.key==='ArrowDown'?['throttle',-.08]:
-    e.key==='ArrowLeft'?['tiller',-.12]:e.key==='ArrowRight'?['tiller',.12]:null;
+  const d=e.key==='ArrowLeft'?['tiller',-.12]:e.key==='ArrowRight'?['tiller',.12]:null;
+  if(e.key==='ArrowUp'||e.key==='ArrowDown'){
+    e.preventDefault();setThrottleNotch(controls.throttle*5+(e.key==='ArrowUp'?1:-1));
+  }
   if(d){e.preventDefault();controls[d[0]]=clamp(controls[d[0]]+d[1],-1,1);renderControls();}
   if(e.code==='Space'){e.preventDefault();controls.throttle=0;renderControls();}
   if(e.key.toLowerCase()==='c'){controls.tiller=0;renderControls();}
 }
 document.addEventListener('keydown',keyInput);
 function arrowStep(e,control,step){if(['ArrowUp','ArrowRight'].includes(e.key)){e.preventDefault();controls[control]=clamp(controls[control]+step,-1,1);renderControls();}if(['ArrowDown','ArrowLeft'].includes(e.key)){e.preventDefault();controls[control]=clamp(controls[control]-step,-1,1);renderControls();}}
-ui.throttleTrack.addEventListener('keydown',e=>{e.stopPropagation();arrowStep(e,'throttle',.05);});
+ui.throttleTrack.addEventListener('keydown',e=>{
+  e.stopPropagation();
+  if(['ArrowUp','ArrowRight','ArrowDown','ArrowLeft','Home','End'].includes(e.key)){
+    e.preventDefault();
+    setThrottleNotch(e.key==='Home'?-5:e.key==='End'?5:controls.throttle*5+(['ArrowUp','ArrowRight'].includes(e.key)?1:-1));
+  }
+});
 ui.tillerPad.addEventListener('keydown',e=>{e.stopPropagation();arrowStep(e,'tiller',.08);});
 $('startButton').addEventListener('click',()=>reset(false));
 $('againButton').addEventListener('click',()=>reset(false));
@@ -224,18 +248,81 @@ function drawLock(){
   ctx.fillStyle='#f5ebc8';ctx.font='bold 11px DM Sans';ctx.textAlign='center';
   ctx.fillText('LOCK · STOP', (a.x+b.x)/2, a.y+Math.min(45,length*.35));
 }
-function drawWake(){
-  const stern=pointOnHull(boat,0,-BOAT.length*.5),p=project(stern.x,stern.y);
-  const speed=Math.abs(boat.forwardSpeed),angle=boat.heading;
-  if(speed<.2)return;
-  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(-angle);
-  ctx.globalAlpha=Math.min(.5,speed*.23);
-  for(let i=0;i<5;i++){
-    const tail=(i*12+clock*speed*13)%64;
-    ctx.beginPath();ctx.ellipse(0,tail,5+tail*.25,2+tail*.08,0,0,Math.PI*2);
-    ctx.strokeStyle='#e1fcf1';ctx.lineWidth=1.7;ctx.stroke();
+function waveStroke(points,opacity=1,lineWidth=1.5){
+  if(points.length<2)return;
+  ctx.beginPath();
+  const first=project(points[0].x,points[0].y);
+  ctx.moveTo(first.x,first.y);
+  for(let i=1;i<points.length;i++){
+    const p=project(points[i].x,points[i].y);ctx.lineTo(p.x,p.y);
   }
-  ctx.restore();
+  ctx.strokeStyle='rgba(231,252,245,'+clamp(opacity,0,1)+')';
+  ctx.lineWidth=lineWidth;ctx.lineCap='round';ctx.stroke();
+}
+// Local wake coordinates: forward is (sin(angle), -cos(angle)), sideways
+// is (cos(angle),sin(angle)). The V opens opposite the travel direction.
+function wavePoint(origin,angle,aft,side){
+  const backX=-Math.sin(angle),backY=Math.cos(angle);
+  return {x:origin.x+backX*aft+Math.cos(angle)*side,
+          y:origin.y+backY*aft+Math.sin(angle)*side};
+}
+function drawWake(){
+  // The established trail is rendered using old boat positions and directions.
+  // It does not rotate with the current heading, avoiding the old orientation bug.
+  for(const mark of wakeMarks){
+    const age=clock-mark.time;
+    const fade=Math.pow(Math.max(0,1-age/WAKE_LIFETIME),1.5);
+    const extent=(1.3+mark.strength*3.3);
+    for(const side of [-1,1]){
+      const points=[];
+      for(let i=0;i<=6;i++){
+        const t=i/6;
+        points.push(wavePoint(mark,mark.angle,extent*t,side*(.35+extent*t*.5)));
+      }
+      waveStroke(points,fade*mark.strength*.37,1.4);
+    }
+  }
+
+  const velocity=Math.hypot(boat.vx,boat.vy);
+  const ahead=Math.max(0,boat.forwardSpeed);
+  if(ahead>0.2&&velocity>0.2){
+    // Continuous bow shoulder waves, increasing with vessel speed.
+    const bow=pointOnHull(boat,0,BOAT.length*.53);
+    const angle=travelAngle(boat.vx,boat.vy,boat.heading);
+    const strength=clamp(ahead/1.7,0,1);
+    for(const side of [-1,1]){
+      const points=[];
+      for(let i=0;i<=14;i++){
+        const t=i/14;
+        const aft=BOAT.length*(.15+.75*t);
+        const spread=BOAT.beam*(.28+1.25*t)*(.4+.6*strength);
+        const ripple=Math.sin(clock*3.1-t*11)*.09*strength;
+        points.push(wavePoint(bow,angle,aft,side*(spread+ripple)));
+      }
+      waveStroke(points,strength*.64,1.4+strength*1.3);
+    }
+  }
+
+  // Propeller wash is caused by engine thrust even while stationary.
+  // The outflow changes sides when the combined throttle is put astern.
+  const power=Math.abs(boat.throttle);
+  if(power>.01){
+    const direction=boat.throttle>0?1:-1;
+    const source=pointOnHull(boat,0,direction>0?-BOAT.length*.55:BOAT.length*.55);
+    const angle=boat.heading;
+    const foam=clamp(power,0,1);
+    for(let i=0;i<5;i++){
+      const phase=(clock*(1.3+power*2.3)+i/5)%1;
+      const axial=direction*(.4+phase*(2+foam*4));
+      const width=(.18+phase*(.45+foam*.9));
+      const centre=wavePoint(source,angle,axial,Math.sin(clock*7+i*2.1)*.18);
+      const p=project(centre.x,centre.y);
+      ctx.beginPath();
+      ctx.ellipse(p.x,p.y,scale*width,scale*(.15+foam*.24),angle,0,Math.PI*2);
+      ctx.strokeStyle='rgba(242,255,243,'+(foam*(1-phase)*.63)+')';
+      ctx.lineWidth=1.15+foam;ctx.stroke();
+    }
+  }
 }
 function drawBoat(){
   const p=project(boat.x,boat.y);
