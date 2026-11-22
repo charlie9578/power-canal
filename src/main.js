@@ -26,7 +26,12 @@ const STEP=1/60, MAX_DT=.05;
 const requestedCourse=new URLSearchParams(window.location.search).get('course');
 let selectedCourse=COURSES.some(c=>c.id===requestedCourse)?requestedCourse:'classic';
 setActiveCourse(selectedCourse);
-function bestKey(courseId=selectedCourse){return 'power-canal-best-'+courseId;}
+function bestKey(courseId=selectedCourse){
+  // Stage 03 is a new layout. Do not compare older winding-hole times
+  // against the sharper bridge-and-90-degree-turn course.
+  return 'power-canal-best-'+courseId+
+    (courseId==='technical'?'-rightangle-v2':'');
+}
 function readBestFor(courseId){
   try{
     const stored=localStorage.getItem(bestKey(courseId)) ??
