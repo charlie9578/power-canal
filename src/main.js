@@ -1,7 +1,7 @@
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-2';
-import { createWakeMark, pruneWakeMarks, travelAngle, WAKE_LIFETIME } from './water.js?v=20261122-2';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-2';
-import { WIDTH, START_Y, LOCK, centreAt, halfWidthAt, checkBanks, insideLock, pointOnHull } from './course.js?v=20261122-2';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-3';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-3';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-3';
+import { WIDTH, START_Y, LOCK, centreAt, halfWidthAt, checkBanks, insideLock, pointOnHull } from './course.js?v=20261122-3';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
@@ -314,10 +314,14 @@ function drawWake(){
       const phase=(clock*(1.3+power*2.3)+i/5)%1;
       const axial=direction*(.4+phase*(2+foam*4));
       const width=(.18+phase*(.45+foam*.9));
-      const centre=wavePoint(source,angle,axial,Math.sin(clock*7+i*2.1)*.18);
+      // The blade deflects the forward propeller jet; astern has a weaker effect.
+      // Boat.rudder lags the tiller, so this plume naturally takes time to turn.
+      const deflection=propWashSideOffset(boat.rudder,boat.throttle,Math.abs(axial));
+      const centre=wavePoint(source,angle,axial,deflection+Math.sin(clock*7+i*2.1)*.18);
       const p=project(centre.x,centre.y);
       ctx.beginPath();
-      ctx.ellipse(p.x,p.y,scale*width,scale*(.15+foam*.24),angle,0,Math.PI*2);
+      const washRotation=angle + (boat.throttle>0?-boat.rudder*.5:boat.rudder*.1);
+      ctx.ellipse(p.x,p.y,scale*width,scale*(.15+foam*.24),washRotation,0,Math.PI*2);
       ctx.strokeStyle='rgba(242,255,243,'+(foam*(1-phase)*.63)+')';
       ctx.lineWidth=1.15+foam;ctx.stroke();
     }
