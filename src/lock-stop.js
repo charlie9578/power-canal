@@ -2,7 +2,7 @@
  * Precision docking rules for the game. These are gameplay tolerances, not
  * extra hydrodynamic forces. The boat's 3-DOF motion is left untouched.
  */
-import { insideLock } from './course.js';
+import { insideLock, hullSamples, LOCK } from './course.js';
 
 export const LOCK_STOP=Object.freeze({
   maxSpeed:.16,        // m/s ground speed (0.36 mph)
@@ -35,6 +35,14 @@ export function updateLockStop(boat,hold,dt,length,beam,limits=LOCK_STOP){
     else if(!speedOk)status='moving';
     else if(!yawOk)status='turning';
     else status='holding';
+  }else{
+    // Match the existing whole-hull finish geometry; the status can explain
+    // which end of the long vessel is still outside the chamber.
+    const points=hullSamples(boat,length,beam),margin=.15;
+    if(points.some(p=>p.y<=LOCK.endY+margin))status='far-gate';
+    else if(points.some(p=>p.y>=LOCK.startY-margin))status='entrance';
+    else if(points.some(p=>Math.abs(p.x-LOCK.centreX)>=LOCK.width/2-margin))
+      status='side-wall';
   }
   return {
     inside,speed,yawRate:yaw,speedOk,yawOk,stable,
