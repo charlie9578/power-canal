@@ -1,4 +1,4 @@
-# Power Canal physics model (v0.2.0)
+# Power Canal physics model (v0.2.1)
 
 ## Scope and confidence
 
@@ -41,7 +41,7 @@ where `m_x`, `m_y` and `I` include diagonal water-added inertia. The translation
 
 ### Rigid hull / added mass
 
-`m=14,000 kg`, length `L=14.6 m`, beam `2.08 m`, approximate draft `0.65 m`. The dry yaw moment is `m*(0.29L)^2`. Added inertia is set at 8% of mass for surge, 72% for sway, and 45% of the dry yaw inertia. These are **assumed tunables**, not measured for this hull.
+`m=14,000 kg`, length `L=14.6 m`, beam `2.08 m`, approximate draft `0.65 m`. The dry yaw moment is `m*(0.29L)^2`. Added inertia is set at 8% of mass for surge, 72% for sway, and 80% of the dry yaw inertia (v0.2.1 tuning). These are **assumed tunables**, not measured for this hull.
 
 ### Propulsion and longitudinal drag
 
@@ -57,11 +57,15 @@ The boat therefore keeps moving sideways/rotating after the rudder is straighten
 
 ### Rudder and direct tiller
 
-The tiller mechanically determines the rudder angle **immediately**:
+The mechanical tiller and rudder move **together**, but a person can only move them so quickly. The requested setting is rate-limited rather than delayed with a software time constant:
 
 ```text
-delta = clamp(tiller,-1,1) * maxRudder
+target_delta = clamp(tiller,-1,1) * maxRudder
+delta_next = delta + clamp(target_delta-delta, -maxRudderRate*dt, maxRudderRate*dt)
+maxRudderRate = 2.2 rad/s (around 0.3 s centre-to-full lock)
 ```
+
+The displayed tiller and prop wash follow the resulting actual rudder angle.
 
 The rudder is at the stern, with turning moment `N_rudder = x_r * Y_rudder`. Lateral force scales with approximate local flow squared and a saturated foil lift curve. When propelling ahead, a simulated jet through the propeller gives positive flow at the rudder even at zero boat speed, so the bow starts rotating under ahead power from a standstill (while the boat still has inertia). In astern the effect is far weaker because propeller flow goes forward and largely bypasses the stern rudder.
 
@@ -89,7 +93,7 @@ pole = -1/T
 
 An RHP pole at `-1/T > 0` indicates directional instability, not simply slow response. A **right-half-plane zero** is a separate concept and may manifest as inverse response. A full heading transfer function includes an integrator (`psi_dot=r`) at zero frequency; that is not an RHP instability.
 
-In our 3-DOF model, `directionalPoles(speed, config, water)` numerically computes the two eigenvalues of the *frozen-speed*, small-perturbation sway/yaw Jacobian with the rudder fixed at centre. At **1.5 m/s** in the default channel with the baseline coefficients, the model currently gives approximate real poles of **-0.18/s and -0.39/s** (both stable). This is a **prediction from the chosen parameters**, not a measured property of a narrowboat.
+In our 3-DOF model, `directionalPoles(speed, config, water)` numerically computes the two eigenvalues of the *frozen-speed*, small-perturbation sway/yaw Jacobian with the rudder fixed at centre. At **1.5 m/s** in the default channel with the baseline coefficients, the model currently gives approximate real poles of **approximately -0.11/s and -0.29/s** (both stable). This is a **prediction from the chosen parameters**, not a measured property of a narrowboat.
 
 Using `lateralCentre: 10` deliberately makes one pole positive for testing that the model can identify directional instability; it is **not** a recommended or physically identified hull parameter.
 
@@ -105,3 +109,7 @@ Because equilibrium at nonzero speed requires a propulsive force, the frozen-spe
 6. Compare actual time-trial completion times and lock approaches to determine whether the model is physically plausible *and* enjoyable.
 
 Until validation, this is a *physics-informed prototype*, not a real narrowboat simulation.
+
+## v0.2.1 steering feel
+
+The rudder now has a short **finite manual sweep** without artificial transmission lag. Added yaw inertia was increased and crossflow damping reduced, producing more persistent yaw after releasing the tiller. This makes early countersteering important. These values remain gameplay-tuned estimates; physically measured rudder response, turning circles, and zigzag trials should determine eventual calibration. Default directional poles remain in the left half-plane.
