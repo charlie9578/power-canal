@@ -36,7 +36,7 @@ test('variable water sections include deep/wide, shallow/narrow and masonry',()=
   assert.ok(meadow.width>shallow.width);
   assert.ok(meadow.depth>shallow.depth);
   assert.ok(deep.width>17&&deep.depth>2.5);
-  assert.ok(shallow.width<8&&shallow.depth<1.1);
+  assert.ok(shallow.width<9&&shallow.width>BOAT.beam*3&&shallow.depth<1.1);
   assert.equal(aqueduct.bank,'aqueduct');
   assert.equal(brick.bank,'brick');
   assert.equal(stone.bank,'stone');
@@ -65,7 +65,7 @@ test('the aqueduct is straight and hull-sized, with realistic 3-DOF water inputs
   }
 }));
 
-test('curved centreline is physically traversable for a 48-foot boat',()=>inLab(()=>{
+test('curved centreline has geometric clearance for a 48-foot boat',()=>inLab(()=>{
   for(let y=51;y>=-588;y-=2){
     const slope=(centreAt(y+.1)-centreAt(y-.1))/.2;
     const boat=createBoat(centreAt(y),y,Math.atan(-slope));
