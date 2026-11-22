@@ -82,13 +82,18 @@ test('prop wash bends with actual rudder angle, with less reverse effect',async(
     'plume curves farther downstream');
 });
 
-test('propeller wash follows the rudder response lag',async()=>{
+test('propeller wash tracks mechanical rudder immediately, while the boat retains yaw inertia',async()=>{
   const { propWashSideOffset }=await import('../src/water.js');
   const b=createBoat(0,0);
   stepBoat(b,{throttle:1,tiller:1},1/60);
-  const initial=Math.abs(propWashSideOffset(b.rudder,b.throttle,4));
-  for(let i=0;i<60;i++)stepBoat(b,{throttle:1,tiller:1},1/60);
-  assert.ok(Math.abs(propWashSideOffset(b.rudder,b.throttle,4))>initial);
+  assert.equal(b.rudder,BOAT.maxRudder);
+  const rightWash=propWashSideOffset(b.rudder,b.throttle,4);
+  assert.ok(rightWash<0);
+  const priorHeading=b.heading;
+  stepBoat(b,{throttle:1,tiller:-1},1/60);
+  assert.equal(b.rudder,-BOAT.maxRudder);
+  assert.ok(propWashSideOffset(b.rudder,b.throttle,4)>0);
+  assert.ok(Math.abs(b.heading-priorHeading)<.01,'boat heading retains inertia');
 });
 
 test('tiller moves the rudder immediately while yaw changes only through inertia',()=>{
