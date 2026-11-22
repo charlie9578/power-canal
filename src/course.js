@@ -1,4 +1,4 @@
-// Two selectable routes. Geometry is measured in metres, with travel from
+// Three selectable routes. Geometry is measured in metres, with travel from
 // positive y toward negative y. The classic course is preserved by default.
 // The physics receives the *local* width and depth in canalEnvironmentAt().
 export const WIDTH=12.8;
@@ -27,6 +27,22 @@ const TEST_PATH=Object.freeze([
   {y:-595,x:0},{y:-665,x:0}
 ]);
 
+// Stage 03: an abrupt dogleg navigable through a broad winding hole.
+// The narrow approach/exit make braking, tiller position and propwash matter.
+// Geometry is deliberately identical to the bank and resistance calculation.
+const TECH_PATH=Object.freeze([
+  {y:80,x:0},{y:60,x:0},{y:-65,x:0},{y:-95,x:0},
+  {y:-109,x:0},{y:-118,x:2},{y:-127,x:16},
+  {y:-137,x:33},{y:-149,x:35},{y:-169,x:35},
+  {y:-225,x:35},{y:-320,x:35},{y:-450,x:35}
+]);
+const TECH_ZONES=Object.freeze([
+  {top:80,bottom:-70,width:14,depth:1.75,bank:'natural',name:'TOWPATH STRAIGHT'},
+  {top:-70,bottom:-108,width:10,depth:1.25,bank:'stone',name:'BRAKE FOR TURN'},
+  {top:-108,bottom:-194,width:27,depth:2.05,bank:'stone',name:'WINDING HOLE · SLOW'},
+  {top:-194,bottom:-310,width:9.5,depth:1.5,bank:'brick',name:'NARROW EXIT'},
+  {top:-310,bottom:-400,width:14,depth:1.85,bank:'natural',name:'LOCK APPROACH'}
+]);
 export const COURSES=Object.freeze([
   {id:'classic',number:'01',name:'Bridge to Lock',
    description:'Two gentle bends, bridges and a precision stop in the lock.',
@@ -38,7 +54,13 @@ export const COURSES=Object.freeze([
    lock:{startY:-610,endY:-645,centreX:0,width:4.65},
    bridges:[{y:-15,opening:6.8},{y:-214,opening:6.8}],
    aqueduct:{top:-244,bottom:-332},
-   zones:TEST_ZONES}
+   zones:TEST_ZONES},
+  {id:'technical',number:'03',name:'The Winding Hole',
+   description:'Brake for a near-right-angle dogleg, then use short bursts of ahead thrust and hard tiller to swing into the narrow exit.',
+   lock:{startY:-390,endY:-421,centreX:35,width:4.65},
+   bridges:[{y:-40,opening:6}],
+   aqueduct:null,zones:TECH_ZONES,
+   turningZone:{startY:-85,endY:-205,centreY:-130,centreX:17}}
 ]);
 
 let activeCourse=COURSES[0];
@@ -54,7 +76,9 @@ const clamp=(x,a,b)=>Math.max(a,Math.min(x,b));
 const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
 
 function testCentreAt(y){
-  const path=TEST_PATH;
+  return pathCentreAt(y,TEST_PATH);
+}
+function pathCentreAt(y,path){
   if(y>=path[0].y)return path[0].x;
   if(y<=path[path.length-1].y)return path[path.length-1].x;
   for(let i=0;i<path.length-1;i++){
@@ -71,13 +95,14 @@ function testCentreAt(y){
 }
 export function centreAt(y){
   if(activeCourse.id==='test')return testCentreAt(y);
+  if(activeCourse.id==='technical')return pathCentreAt(y,TECH_PATH);
   // Original gentle route, tapering to a straight lock approach.
   const fade=clamp((-y-305)/65,0,1);
   return (1-fade)*(12*Math.sin((y-45)/93)+5*Math.sin((y-30)/39));
 }
 
-function testWaterway(y){
-  const zones=TEST_ZONES;
+function testWaterway(y){return zonedWaterway(y,TEST_ZONES);}
+function zonedWaterway(y,zones){
   let index=zones.findIndex(z=>y<=z.top && y>z.bottom);
   if(index<0)index=y>zones[0].top?0:zones.length-1;
   const zone=zones[index];
@@ -99,6 +124,7 @@ export function waterwayAt(y){
   if(y<LOCK.startY+8 && y>LOCK.endY-6)
     return {width:LOCK.width,depth:1.8,bank:'stone',name:'LOCK CHAMBER'};
   if(activeCourse.id==='test')return testWaterway(y);
+  if(activeCourse.id==='technical')return zonedWaterway(y,TECH_ZONES);
   return {
     width:WIDTH+1.1*Math.sin(y/73),depth:1.5,
     bank:'natural',name:'CLASSIC CANAL'
