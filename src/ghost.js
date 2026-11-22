@@ -7,7 +7,9 @@
 export const GHOST_FORMAT=1;
 export const GHOST_INTERVAL=.25;
 export const GHOST_MAX_FRAMES=6000;
-export const ghostKey=courseId=>'power-canal-ghost-v1-'+courseId;
+export const ghostKey=courseId=>courseId==='technical'
+  ?'power-canal-ghost-v2-technical'
+  :'power-canal-ghost-v1-'+courseId;
 const finite=Number.isFinite;
 const round=x=>Math.round(x*1000)/1000;
 
