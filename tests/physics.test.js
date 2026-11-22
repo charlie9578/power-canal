@@ -67,3 +67,26 @@ test('stepped throttle has eleven positions, snaps and labels correctly',async()
   assert.equal(labelForNotch(-3),'REV 3');
   assert.equal(labelForNotch(0),'NEUTRAL');
 });
+
+test('prop wash bends with actual rudder angle, with less reverse effect',async()=>{
+  const { propWashSideOffset } = await import('../src/water.js');
+  assert.equal(propWashSideOffset(0,1,4),0,'straight rudder gives straight plume');
+  assert.equal(propWashSideOffset(.5,0,4),0,'neutral gives no plume');
+  const rightTillerAhead=propWashSideOffset(.5,1,4);
+  const leftTillerAhead=propWashSideOffset(-.5,1,4);
+  assert.ok(rightTillerAhead < 0,'starboard tiller deflects jet to port');
+  assert.ok(leftTillerAhead > 0,'port tiller deflects jet to starboard');
+  assert.ok(Math.abs(propWashSideOffset(.5,-1,4))<Math.abs(rightTillerAhead),
+    'rudder has much less effect on the reverse jet');
+  assert.ok(Math.abs(propWashSideOffset(.5,1,5))>Math.abs(rightTillerAhead),
+    'plume curves farther downstream');
+});
+
+test('propeller wash follows the rudder response lag',async()=>{
+  const { propWashSideOffset }=await import('../src/water.js');
+  const b=createBoat(0,0);
+  stepBoat(b,{throttle:1,tiller:1},1/60);
+  const initial=Math.abs(propWashSideOffset(b.rudder,b.throttle,4));
+  for(let i=0;i<60;i++)stepBoat(b,{throttle:1,tiller:1},1/60);
+  assert.ok(Math.abs(propWashSideOffset(b.rudder,b.throttle,4))>initial);
+});
