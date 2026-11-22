@@ -165,15 +165,28 @@ export function checkBanks(b,length,beam){
 export function checkObstacles(_b,_length,_beam){
   return {depth:0,normalX:0,normalY:0,name:''};
 }
-export function insideLock(b,length,beam){
-  const tolerance=.05;
-  return [-.5,.5].every(fore=>
-    [-.5,.5].every(side=>{
+// Positive clearance means that part of the entire rectangular hull is
+// inside the chamber; negative values indicate how far it crosses a wall or
+// gate. This is the single geometry source for both finish and HUD guidance.
+export function lockClearance(b,length,beam){
+  let left=Infinity,right=-Infinity,bow=Infinity,stern=-Infinity;
+  for(const fore of [-.5,.5]){
+    for(const side of [-.5,.5]){
       const p=pointOnHull(b,side*beam,fore*length);
-      return p.y<LOCK.startY+tolerance && p.y>LOCK.endY-tolerance &&
-        Math.abs(p.x-LOCK.centreX)<LOCK.width/2+tolerance;
-    })
-  );
+      left=Math.min(left,p.x);right=Math.max(right,p.x);
+      bow=Math.min(bow,p.y);stern=Math.max(stern,p.y);
+    }
+  }
+  return {
+    entrance:LOCK.startY-stern,
+    farGate:bow-LOCK.endY,
+    left:left-(LOCK.centreX-LOCK.width/2),
+    right:(LOCK.centreX+LOCK.width/2)-right
+  };
+}
+export function insideLock(b,length,beam,tolerance=.05){
+  const limits=lockClearance(b,length,beam);
+  return Object.values(limits).every(clearance=>clearance> -tolerance);
 }
 // Water conditions are fed directly to ITTC/Froude/Schijf resistance,
 // propeller loading, and the sway/yaw bank-effect model.
