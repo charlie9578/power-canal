@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#102b30" />
   <meta name="description" content="Power Canal — a portrait-mode narrowboat precision racing game." />
   <title>Power Canal — Bridge to Lock</title>
-  <link rel="stylesheet" href="./style.css?v=20261122-13" />
+  <link rel="stylesheet" href="./style.css?v=20261122-14" />
 </head>
 <body>
   <main class="game-shell is-home" id="gameShell">
@@ -16,7 +16,7 @@
 
       <div class="hud">
         <div class="hud-chip">
-          <span class="eyebrow" id="stageNumber">POWER CANAL v0.4.3 / STAGE 01</span>
+          <span class="eyebrow" id="stageNumber">POWER CANAL v0.5.0 / STAGE 01</span>
           <strong id="stageName">Bridge to Lock</strong>
         </div>
         <div class="hud-chip hud-time">
@@ -54,6 +54,9 @@
             </button>
             <button type="button" class="route-option" data-course="test" aria-pressed="false">
               <strong>02 · WATERWAY LAB</strong><small id="stageBestTest">NOT COMPLETED</small>
+            </button>
+            <button type="button" class="route-option" data-course="technical" aria-pressed="false">
+              <strong>03 · WINDING HOLE</strong><small id="stageBestTechnical">NOT COMPLETED</small>
             </button>
           </div>
           <p id="startDescription" class="home-route-description">Two gentle bends, bridges and a precision stop in the lock.</p>
@@ -123,6 +126,6 @@
       <div class="deck-footer"><span>ANTICIPATE THE TURN</span><span id="hintDisplay">STOP INSIDE THE LOCK</span></div>
     </section>
   </main>
-  <script type="module" src="./src/main.js?v=20261122-13"></script>
+  <script type="module" src="./src/main.js?v=20261122-14"></script>
 </body>
 </html>
