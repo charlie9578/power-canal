@@ -34,7 +34,7 @@ export function pruneWakeMarks(marks,time) {
 // less authority. Use the delayed *actual rudder* angle, not touch input.
 // Returns lateral offset in metres at a distance from the propeller.
 export function propWashSideOffset(rudder, throttle, distance) {
-  if(Math.abs(throttle)<0.01 || distance<=0) return 0;
+  if(Math.abs(throttle)<0.01 || distance<=0 || Math.abs(rudder)<1e-10) return 0;
   const effectiveness=throttle>0 ? -0.52 : 0.10;
   return Math.tan(clamp(rudder,-0.72,0.72))*distance*effectiveness;
 }
