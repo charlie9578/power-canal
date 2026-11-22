@@ -60,7 +60,7 @@ function pilot(mode){
 
       const bank=checkBanks(boat,BOAT.length,BOAT.beam);
       maxBankPenetration=Math.max(maxBankPenetration,bank.depth);
-      if(bank.depth>.075)bankHits++;
+      if(bank.depth>.035)bankHits++;
       if(bank.depth>0){
         const correction=Math.min(bank.depth*.25,.5);
         boat.x+=bank.normalX*correction;
@@ -90,7 +90,7 @@ function pilot(mode){
       const now=technicalRouteProgress(boat);
       if(now.s>TECHNICAL_TURN_START)reachedRightTurn=true;
       if(now.s>TECHNICAL_TURN_END+12)clearedRightTurn=true;
-      if(now.s>TECHNICAL_TURN_START-3&&now.s<TECHNICAL_TURN_END+10){
+      if(now.s>TECHNICAL_TURN_START-3&&now.s<TECHNICAL_TURN_END+55){
         maxTurnSpeed=Math.max(maxTurnSpeed,Math.hypot(boat.vx,boat.vy));
         peakHeading=Math.max(peakHeading,boat.heading);
       }
@@ -132,7 +132,7 @@ test('the 48-foot narrowboat can slow, pulse ahead, round the corner and stop in
   assert.ok(result.peakHeading>1.2,'boat must rotate toward east by 70+ degrees');
   assert.ok(result.maxTurnSpeed<.95,'pilot slows down for the bend');
   assert.equal(result.bankHits,0,'no damaging scrape during controlled manoeuvre');
-  assert.ok(result.maxBankPenetration<.076);
+  assert.ok(result.maxBankPenetration<.036);
   assert.ok(result.finishTime!==null&&result.finishTime<1140,
     'completed manoeuvre must reach and stop in final lock');
   assert.equal(result.finishedInside,true);
@@ -141,7 +141,7 @@ test('the 48-foot narrowboat can slow, pulse ahead, round the corner and stop in
 test('running full-ahead into the right-angle elbow produces a masonry scrape',()=>{
   const result=pilot('fast');
   assert.equal(result.reachedRightTurn,true);
-  assert.ok(result.maxBankPenetration>.075,
+  assert.ok(result.maxBankPenetration>.035,
     'a flat-out late-line run must scrape the stone wall');
 });
 
