@@ -99,6 +99,19 @@ function boot(course){
   }
   assert.ok(calls.paint>previous+100,'gameplay must continue drawing');
   assert.equal(paintStarted,true);
+  // Exercise lock, stone bridge, aqueduct and brick-cutting draw paths, not
+  // merely the first frame beside the start. This would have caught an
+  // exception that occurred only near the finish.
+  const locations=course==='test'?[-95,-280,-490,-625]:[-130,-405];
+  let tick=96;
+  for(const y of locations){
+    vm.runInContext('boat.y='+y+';boat.x=centreAt('+y+');camera.y=boat.y;camera.x=boat.x;',sandbox);
+    const beforeSection=calls.paint;
+    assert.ok(frames.length>0);
+    frames.shift()(tick);
+    tick+=16;
+    assert.ok(calls.paint>beforeSection+40,'section '+y+' must render');
+  }
   // Exercise finish bookkeeping in the real entrypoint. The physics-based
   // end-to-end lock test is in navigation.test.js; here we call finish
   // directly to verify completion saves the best time and ghost replay.
