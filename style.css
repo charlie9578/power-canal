@@ -93,3 +93,77 @@
   .route-picker{margin:8px 0}
   .conditions-chip{top:122px}
 }
+
+
+/* v0.4 — home screen, stage progression and run-ghost overlay */
+.game-shell.is-home .control-deck,.game-shell.is-finished .control-deck{display:none}
+.game-shell.is-home .playfield,.game-shell.is-finished .playfield{flex:1 1 100%}
+.game-shell.is-home .hud,.game-shell.is-home .course-message,
+.game-shell.is-home .conditions-chip,.game-shell.is-home .speed-chip,
+.game-shell.is-home .ghost-chip,.game-shell.is-home .feedback{display:none}
+.game-shell.is-finished .ghost-chip{display:none}
+.is-hidden{display:none!important}
+#startModal{padding:clamp(10px,3vh,22px);background:linear-gradient(170deg,#082128e6,#0a292af7)}
+.home-panel{
+  width:min(100%,440px);padding:clamp(16px,3vh,27px) clamp(16px,5vw,25px);
+  border:1px solid #b3d2b16b;border-radius:20px;
+  background:linear-gradient(155deg,#143a3b,#102d34 70%,#0e252d);
+  box-shadow:0 24px 85px #04151bcc;text-align:left
+}
+#startModal .home-panel h1{
+  margin:4px 0 9px;font-size:clamp(46px,12vw,69px);
+  font-weight:800;line-height:.81;letter-spacing:-3.4px
+}
+.home-kicker{font-size:9px;letter-spacing:2.3px;font-weight:800;color:#b7dcae}
+.home-emblem{color:#9dc5b8;font-size:26px;letter-spacing:8px;margin-top:8px}
+.home-emblem span{display:inline-block;transform:rotate(90deg);color:#e6b877;font-size:25px}
+#startModal .home-tagline{font-size:12px;line-height:1.42;color:#cfdfd5;margin:12px 0 14px}
+.home-summary{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:9px 0 16px}
+.home-summary>div{
+  border:1px solid #82a9a06b;border-radius:10px;background:#0a252eaa;
+  padding:10px 12px;display:flex;flex-direction:column;gap:5px
+}
+.home-summary span{font-size:8px;font-weight:800;letter-spacing:1.4px;color:#93bbaf}
+.home-summary strong{font-family:'Space Grotesk';font-size:22px;color:#f2c58f;font-variant-numeric:tabular-nums}
+.home-section-heading{font-size:10px;color:#e8e7c6;letter-spacing:1.8px;font-weight:800}
+#startModal .route-picker{margin:9px 0;gap:8px}
+#startModal .route-option{padding:12px 10px;min-height:68px;border-radius:10px}
+#startModal .route-option strong{font-size:10px;line-height:1.35}
+#startModal .route-option small{font-size:10px}
+#startModal .route-option.is-selected{background:#294d4a}
+#startModal .home-route-description{
+  color:#c9dbd0;font-size:11px;min-height:28px;margin:9px 0
+}
+#startModal .home-ghost-note{
+  margin:9px 0;color:#a3c8c9;font-size:10px;line-height:1.4
+}
+#startModal .modal .primary-button{margin-top:11px}
+#startModal .modal .fine-print{
+  color:#91b0a4;text-align:center;font-size:9px;letter-spacing:.5px;margin:12px 0 0
+}
+.ghost-chip{
+  position:absolute;bottom:78px;left:14px;border-radius:8px;
+  border:1px dashed #c9f2e19a;background:#15393adb;
+  padding:6px 9px;font-size:10px;font-weight:800;letter-spacing:.8px;
+  color:#b5ebed;display:flex;gap:7px;pointer-events:none
+}
+.ghost-chip strong{font-family:'Space Grotesk';color:#e3f6ea}
+#ghostToggle[aria-pressed="false"]{opacity:.42}
+#resultGhost{font-size:11px;color:#a7d9d9}
+@media(max-height:680px){
+  #startModal .home-panel{padding:13px 16px}
+  #startModal .home-panel h1{font-size:clamp(41px,10vw,52px)}
+  .home-emblem{display:none}
+  #startModal .home-tagline{margin:8px 0;font-size:11px}
+  .home-summary{margin:6px 0 10px}
+  .home-summary>div{padding:7px 10px;gap:2px}
+  .home-summary strong{font-size:19px}
+  #startModal .route-option{padding:8px;min-height:55px}
+  #startModal .home-route-description{margin:6px 0;min-height:0}
+}
+@media(max-width:365px){
+  .deck-heading strong{font-size:10px}
+  .deck-actions{gap:4px}
+  .deck-actions button{width:27px;height:27px}
+  .home-summary strong{font-size:19px}
+}
