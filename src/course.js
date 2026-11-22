@@ -1,3 +1,9 @@
+import {
+  TECHNICAL_PATH,RIGHT_TURN,TECHNICAL_TURN_START,TECHNICAL_TURN_END,
+  TECHNICAL_SECOND_TURN_START,technicalSectionAt,technicalNearest,
+  technicalBankContact,technicalFallbackCentreAt
+} from './technical-route.js';
+
 // Three selectable routes. Geometry is measured in metres, with travel from
 // positive y toward negative y. The classic course is preserved by default.
 // The physics receives the *local* width and depth in canalEnvironmentAt().
@@ -27,22 +33,6 @@ const TEST_PATH=Object.freeze([
   {y:-595,x:0},{y:-665,x:0}
 ]);
 
-// Stage 03: an abrupt dogleg navigable through a broad winding hole.
-// The narrow approach/exit make braking, tiller position and propwash matter.
-// Geometry is deliberately identical to the bank and resistance calculation.
-const TECH_PATH=Object.freeze([
-  {y:80,x:0},{y:60,x:0},{y:-65,x:0},{y:-95,x:0},
-  {y:-109,x:0},{y:-118,x:2},{y:-127,x:16},
-  {y:-137,x:33},{y:-149,x:35},{y:-169,x:35},
-  {y:-225,x:35},{y:-320,x:35},{y:-450,x:35}
-]);
-const TECH_ZONES=Object.freeze([
-  {top:80,bottom:-70,width:14,depth:1.75,bank:'natural',name:'TOWPATH STRAIGHT'},
-  {top:-70,bottom:-108,width:10,depth:1.25,bank:'stone',name:'BRAKE FOR TURN'},
-  {top:-108,bottom:-194,width:27,depth:2.05,bank:'stone',name:'WINDING HOLE · SLOW'},
-  {top:-194,bottom:-310,width:9.5,depth:1.5,bank:'brick',name:'NARROW EXIT'},
-  {top:-310,bottom:-400,width:14,depth:1.85,bank:'natural',name:'LOCK APPROACH'}
-]);
 export const COURSES=Object.freeze([
   {id:'classic',number:'01',name:'Bridge to Lock',
    description:'Two gentle bends, bridges and a precision stop in the lock.',
@@ -55,17 +45,13 @@ export const COURSES=Object.freeze([
    bridges:[{y:-15,opening:6.8},{y:-214,opening:6.8}],
    aqueduct:{top:-244,bottom:-332},
    zones:TEST_ZONES},
-  {id:'technical',number:'03',name:'The Winding Hole',
-   description:'Brake for a near-right-angle dogleg, then use short bursts of ahead thrust and hard tiller to swing into the narrow exit.',
-   lock:{startY:-390,endY:-421,centreX:35,width:4.65},
-   bridges:[{y:-40,opening:6}],
-   aqueduct:null,zones:TECH_ZONES,
-   turningZone:{startY:-85,endY:-205,centreY:-130,centreX:17},
-   // Stone loading quay projects from the outside/right bank into the hole.
-   // This prevents taking the shortcut at cruising speed. The inner/west
-   // approach has a full-hull-width route around it at slow speed.
-   obstacles:[{id:'wharf',name:'STONE WHARF',left:36.6,right:54,
-     top:-155,bottom:-183}]}
+  {id:'technical',number:'03',name:'The Bridge & Bend',
+   description:'Cross the narrow stone bridge, then brake for an exact 90° right turn 22 metres later. Use hard tiller and short ahead-thrust bursts to round the corner without scraping the stone banks.',
+   lock:{startY:-390,endY:-421,centreX:72,width:4.65},
+   bridges:[{y:RIGHT_TURN.bridgeY,opening:4.2}],
+   aqueduct:null,
+   turningZone:{startY:-93,endY:-150,centreY:-115,centreX:0},
+   rightTurn:RIGHT_TURN}
 ]);
 
 let activeCourse=COURSES[0];
@@ -100,7 +86,7 @@ function pathCentreAt(y,path){
 }
 export function centreAt(y){
   if(activeCourse.id==='test')return testCentreAt(y);
-  if(activeCourse.id==='technical')return pathCentreAt(y,TECH_PATH);
+  if(activeCourse.id==='technical')return technicalFallbackCentreAt(y);
   // Original gentle route, tapering to a straight lock approach.
   const fade=clamp((-y-305)/65,0,1);
   return (1-fade)*(12*Math.sin((y-45)/93)+5*Math.sin((y-30)/39));
@@ -129,13 +115,27 @@ export function waterwayAt(y){
   if(y<LOCK.startY+8 && y>LOCK.endY-6)
     return {width:LOCK.width,depth:1.8,bank:'stone',name:'LOCK CHAMBER'};
   if(activeCourse.id==='test')return testWaterway(y);
-  if(activeCourse.id==='technical')return zonedWaterway(y,TECH_ZONES);
+  if(activeCourse.id==='technical'){
+    const near=technicalNearest(technicalFallbackCentreAt(y),y);
+    return {width:near.width,depth:near.depth,bank:near.bank,name:near.name};
+  }
   return {
     width:WIDTH+1.1*Math.sin(y/73),depth:1.5,
     bank:'natural',name:'CLASSIC CANAL'
   };
 }
 export function halfWidthAt(y){return waterwayAt(y).width/2;}
+export function waterwayAtPosition(boat){
+  if(activeCourse.id==='technical' && !(boat.y<LOCK.startY+8 && boat.y>LOCK.endY-6)){
+    const nearby=technicalNearest(boat.x,boat.y);
+    return {width:nearby.width,depth:nearby.depth,bank:nearby.bank,name:nearby.name};
+  }
+  return waterwayAt(boat.y);
+}
+export function technicalPath(){return TECHNICAL_PATH;}
+export function technicalRouteProgress(boat){
+  return activeCourse.id==='technical'?technicalNearest(boat.x,boat.y):null;
+}
 export function pointOnHull(b,localSide,localFore){
   const s=Math.sin(b.heading),c=Math.cos(b.heading);
   return {x:b.x+localSide*c+localFore*s,y:b.y+localSide*s-localFore*c};
@@ -150,6 +150,7 @@ export function hullSamples(b,length,beam){
   return result;
 }
 export function checkBanks(b,length,beam){
+  if(activeCourse.id==='technical')return technicalBankContact(b,length,beam);
   let depth=0,normalX=0;
   for(const p of hullSamples(b,length,beam)){
     const half=halfWidthAt(p.y);
@@ -160,20 +161,9 @@ export function checkBanks(b,length,beam){
 }
 // Accept a stopped boat anywhere in the chamber, with no centre target.
 // Full-sized hull corners are tested with 5 cm tolerance for the rounded bow.
-export function checkObstacles(b,length,beam){
-  let depth=0,normalX=0,name='';
-  for(const obstacle of getActiveCourse().obstacles??[]){
-    // The stone quay connects to the right bank. Only its west-facing
-    // navigation edge is accessible; test the same distributed hull points
-    // as bank collisions so the bow and stern cannot clip the quay.
-    for(const p of hullSamples(b,length,beam)){
-      if(p.x<=obstacle.left||p.x>=obstacle.right||
-        p.y>=obstacle.top||p.y<=obstacle.bottom)continue;
-      const overlap=p.x-obstacle.left;
-      if(overlap>depth){depth=overlap;normalX=-1;name=obstacle.name;}
-    }
-  }
-  return {depth,normalX,name};
+// Stage 03's stone banks are physical geometry; no invisible wharf remains.
+export function checkObstacles(_b,_length,_beam){
+  return {depth:0,normalX:0,normalY:0,name:''};
 }
 export function insideLock(b,length,beam){
   const tolerance=.05;
@@ -188,20 +178,28 @@ export function insideLock(b,length,beam){
 // Water conditions are fed directly to ITTC/Froude/Schijf resistance,
 // propeller loading, and the sway/yaw bank-effect model.
 export function canalEnvironmentAt(boat,beam=2.08,length=14.6){
-  const section=waterwayAt(boat.y);
-  const nearCentre=centreAt(boat.y);
+  const isTechnical=activeCourse.id==='technical';
+  const isLock=boat.y<LOCK.startY+8&&boat.y>LOCK.endY-6;
+  const nearest=isTechnical&&!isLock?technicalNearest(boat.x,boat.y):null;
+  const section=nearest??waterwayAt(boat.y);
+  const nearCentre=nearest?nearest.x:centreAt(boat.y);
   const half=section.width/2;
-  const proximity=clamp(Math.abs(boat.x-nearCentre)/Math.max(half,1),0,1);
+  const offset=nearest?nearest.distance:Math.abs(boat.x-nearCentre);
+  const proximity=clamp(offset/Math.max(half,1),0,1);
   // Account for near-bank shoaling within each nominal cross section.
   // The minimum retains a positive under-keel margin for the test boat.
   const edgeShallow=activeCourse.id==='test'?.14:.33;
   const depth=Math.max(.79,section.depth-edgeShallow*Math.pow(proximity,4));
   const bankSection=fore=>{
     const p=pointOnHull(boat,0,fore*length*.35);
-    const delta=p.x-centreAt(p.y);
+    const bankPoint=nearest?technicalNearest(p.x,p.y):null;
+    const delta=bankPoint
+      ? (p.x-bankPoint.x)*Math.cos(boat.heading)+(p.y-bankPoint.y)*Math.sin(boat.heading)
+      : p.x-centreAt(p.y);
     return {
-      clearance:halfWidthAt(p.y)-beam*.5-Math.abs(delta),
-      side:(delta>=0?1:-1)*Math.cos(boat.heading)
+      clearance:(bankPoint?bankPoint.width/2:halfWidthAt(p.y))-beam*.5-
+        (bankPoint?bankPoint.distance:Math.abs(delta)),
+      side:delta>=0?1:-1
     };
   };
   return {depth,width:section.width,
