@@ -1,4 +1,4 @@
-# Power Canal physics model (v0.4.0)
+# Power Canal physics model (v0.4.1)
 
 ## Scope and confidence
 
@@ -203,3 +203,11 @@ A new deterministic `tests/navigation.test.js` controller uses look-ahead course
 A ghost run is an interpolated, timestamped sequence of previously completed poses, stored per stage with the **adjusted score** (race time plus penalties). It is strictly cosmetic and does not create additional drag, bank effects, rudder interaction or collision penalties. Replays are rendered at the original elapsed race time; the ghost's displayed score may be longer owing to collision penalties. `src/ghost.js` validates recordings and limits memory/storage size. Existing personal bests from versions before ghost recording are retained without synthetic or invented replay data.
 
 The new towpath, field plots, hedges, stone bridges and lock signs affect drawing only, not the force model, local channel depth, bank collision boundaries or lock finish tolerances. A later slow-speed-turn course should be designed around measured turning-circle and yaw tests, rather than adding an arbitrary steering boost.
+
+## v0.4.1 — gameplay docking tolerances
+
+Lock detection continues to use the entire 14.6 m × 2.08 m hull footprint in `insideLock`, including 0.15 m wall/threshold margins. The gameplay finish rule previously demanded ground speed below 0.08 m/s, yaw rate below 0.025 rad/s and 1.4 uninterrupted seconds; this was significantly stricter than the apparent speed and natural longitudinal coasting of a 14-tonne vessel.
+
+The new, separate `src/lock-stop.js` acceptance logic uses **speed over ground below 0.16 m/s**, **yaw rate below 0.040 rad/s**, and **1.2 seconds** of hold. Minor spikes up to 0.23 m/s or 0.060 rad/s subtract partial hold progress at 1.5× time rather than resetting it; substantial movement or leaving the chamber resets to zero. This is a game-specific *docking acceptance tolerance*, not an artificial hydrodynamic damping or speed limit. No force coefficients or rudder physics are changed.
+
+The speedometer now reports `hypot(vx,vy)` (ground speed), matching the finish condition rather than only the ahead velocity `u`. A near-lock indicator displays the whole-hull status, motion/turning blocker and hold progress. The complete course navigation regression now checks the same docking condition used in gameplay.
