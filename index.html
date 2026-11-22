@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#102b30" />
   <meta name="description" content="Power Canal — a portrait-mode narrowboat precision racing game." />
   <title>Power Canal — Bridge to Lock</title>
-  <link rel="stylesheet" href="./style.css?v=20261122-6" />
+  <link rel="stylesheet" href="./style.css?v=20261122-7" />
 </head>
 <body>
   <main class="game-shell">
@@ -16,8 +16,8 @@
 
       <div class="hud">
         <div class="hud-chip">
-          <span class="eyebrow">POWER CANAL v0.3.0 / STAGE 01</span>
-          <strong>Bridge to Lock</strong>
+          <span class="eyebrow" id="stageNumber">POWER CANAL v0.3.1 / STAGE 01</span>
+          <strong id="stageName">Bridge to Lock</strong>
         </div>
         <div class="hud-chip hud-time">
           <span class="eyebrow">TIME</span>
@@ -26,6 +26,7 @@
         </div>
       </div>
       <div class="course-message" id="courseMessage" aria-live="polite">Follow the canal towards the lock</div>
+      <div class="conditions-chip" aria-label="Waterway conditions"><strong id="waterLabel">CLASSIC CANAL</strong><span id="waterInfo">DEPTH 1.50m · WIDTH 12.8m</span></div>
       <div class="speed-chip"><strong id="speedDisplay">0.0</strong><span>MPH</span></div>
       <div class="feedback" id="feedback" aria-live="polite"></div>
 
@@ -34,7 +35,15 @@
           <div class="modal-emblem">🚤</div>
           <span class="eyebrow">A NARROWBOAT TIME TRIAL</span>
           <h1>POWER<br /><em>CANAL</em></h1>
-          <p>Anticipate the bends, clear the bridge and stop <strong>entirely inside the lock.</strong> Every hard collision adds time.</p>
+          <p id="startDescription">Two gentle bends, bridges and a precision stop in the lock.</p>
+          <div class="route-picker" role="group" aria-label="Choose course">
+            <button type="button" class="route-option is-selected" data-course="classic" aria-pressed="true">
+              <strong>01 · CLASSIC</strong><small>Bridge to Lock</small>
+            </button>
+            <button type="button" class="route-option" data-course="test" aria-pressed="false">
+              <strong>02 · PHYSICS LAB</strong><small>Variable depths &amp; bends</small>
+            </button>
+          </div>
           <div class="modal-tip"><span>THROTTLE · LEFT</span><span>TILLER · RIGHT</span></div>
           <p class="fine-print">Real tiller direction: push the handle left to turn the bow right. The boat takes time to respond.</p>
           <button class="primary-button" id="startButton" type="button">START TIME TRIAL <span>↗</span></button>
@@ -53,6 +62,7 @@
           </div>
           <p id="resultMessage">Nice run.</p>
           <button class="primary-button" id="againButton" type="button">RACE AGAIN <span>↗</span></button>
+          <button class="secondary-button" id="chooseRouteButton" type="button">CHANGE COURSE</button>
         </div>
       </div>
     </section>
@@ -61,6 +71,7 @@
       <div class="deck-heading">
         <div><span class="deck-label">VESSEL / 48 FT NARROWBOAT</span><strong id="stateDisplay">READY · ENGINE IDLE</strong></div>
         <div class="deck-actions">
+          <button id="courseButton" type="button" aria-label="Choose another course" title="Choose course">≋</button>
           <button id="pauseButton" type="button" aria-label="Pause or resume race">Ⅱ</button>
           <button id="resetButton" type="button" aria-label="Restart race">↻</button>
         </div>
@@ -98,6 +109,6 @@
       <div class="deck-footer"><span>ANTICIPATE THE TURN</span><span id="hintDisplay">STOP INSIDE THE LOCK</span></div>
     </section>
   </main>
-  <script type="module" src="./src/main.js?v=20261122-6"></script>
+  <script type="module" src="./src/main.js?v=20261122-7"></script>
 </body>
 </html>
