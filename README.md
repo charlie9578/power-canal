@@ -32,7 +32,7 @@ The opening menu now offers three selectable stages:
 
 - **01 — Bridge to Lock:** the original winding narrowboat time trial, unchanged in layout.
 - **02 — The Waterway Lab:** a longer engineering test course with navigable S-bends, deep/broad reaches, shallow/narrow sections, a **stone aqueduct**, a brick-lined cutting, two bridges and a lock finish.
-- **03 — The Winding Hole:** a straight approach, narrow braking stretch, a sudden dogleg across a broad stone-lined winding hole, a projecting **stone wharf** that blocks an over-wide exit line, and a narrow brick cutting leading to a separate lock. Slow down well before the turn, then use the tiller and short ahead-power bursts to steer around the quay. This is the first course specifically designed around low-speed propeller-wash steering. The 48-foot narrowboat is unchanged: it is the *waterway* that varies.
+- **03 — Bridge & Bend:** cross a narrow **stone bridge**, then negotiate an actual **90° right turn beginning 22 metres (1.5 boat lengths) beyond the bridge**, followed by a short eastbound cut, a gentler return bend and the finish lock. Brake early, use substantial tiller and short bursts of ahead power to swing the stern around the stone corner. Stage 03 uses a true two-dimensional channel rather than an approximate side-to-side S-curve; the 48-foot boat's physics are unchanged.
 
 The conditions display shows the current **nominal channel width and depth**. These quantities feed the Schijf-based resistance calculation and shore effects, so this is a real handling and speed test, not just different paint. Bank construction changes the visuals; stone, brick and earth do not yet have separately identified hydrodynamic coefficients. All geometry is fictional and dimensions are exploratory, not a surveyed canal.
 
@@ -74,7 +74,8 @@ The fixed-timestep dynamics model in `src/physics.js` now uses a coupled **surge
 - `src/scenery.js`: deterministic fields, towpaths and stone bridge rendering.
 - `src/steering-analysis.js`: Nomoto gain, zeros and poles.
 - `PHYSICS.md`: engineering notes, model derivation and calibration plan.
-- `src/course.js`: three fictional canal layouts, section widths/depths, bank styles, bridges, aqueduct, stone wharf and lock geometry.
+- `src/course.js`: three fictional canal layouts, banks, bridges, aqueduct and locks.
+- `src/technical-route.js`: exact 90° bend, eastbound channel, centreline proximity and physical hull/bank collision geometry.
 - `src/main.js`: canvas rendering, collision/penalty rules, touch/keyboard input, simulation loop and timing.
 - `src/water.js`: movement-aligned, world-space wake samples and their lifetimes.
 - `src/throttle.js`: 11-position combined throttle and reverse lever.
@@ -134,10 +135,20 @@ Restores the original **0.08 m/s (0.18 mph)** stopping threshold, now held for *
 
 The visual dashed lock centreline was removed to avoid implying a centre target. Boat physics, collisions, routes, best times and ghosts remain unchanged.
 
-### v0.5.0 — Stage 03: The Winding Hole
+### v0.5.0 — Original Stage 03 prototype: The Winding Hole (superseded)
 
 A third, independently timed stage now presents a challenging dogleg in a widened stone-lined winding hole. The approach is **10 m wide and 1.25 m deep**, the winding hole opens out to **27 m wide and 2.05 m deep**, and the narrow exit is **9.5 m wide**. A clearly drawn stone wharf physically projects into the hole from the outside bank. This obstacle is tested against hull samples and reacts with the same momentum loss as bank collisions, with a penalty for significant impacts. The turn has a local centreline curvature radius near **7 m**, much sharper than the 48-foot boat's ordinary cruising-speed turning circle; players are encouraged to brake and use short ahead-thrust pulses with substantial tiller deflection.
 
 The stage includes an early warning sign, a winding-hole manoeuvring sign, an exit marker and its own relocated lock. The unchanged boat physics is used throughout, and the new level has its own locally stored best score and optional best-run ghost. An automated, *test-only* helm completes the stage by controlling speed around 0.5 m/s and applying bursts of ahead power through the winding hole without bank, wharf or bridge contact; a representative flat-out, late-turn attempt collides with the wharf. A particularly skilful high-speed path may still succeed; this is a handling challenge, not an artificial speed restriction or enforced speed gate.
 
 Only Stage 03 has been added; the geometry and scoring of Stages 01 and 02 have not been changed.
+
+### v0.5.1 — Bridge & Bend (Stage 03 replacement)
+
+Stage 03 has been rebuilt in response to player feedback that the original wide winding hole could be taken at full speed. The new route crosses a **4.2 m-wide stone bridge** and, only **22 m (1.51 boat lengths)** beyond its centre, begins a **true 90° right bend** with a 9 m centreline radius. An **eastbound canal section** follows before a much gentler left return to the lock. This requires a genuinely spatial 2D waterway: the horizontal leg cannot be described with the original `centreAt(y)` alone.
+
+The canal banks are now collision checked by projecting the entire sampled narrowboat hull onto the nearest section of the 2D path. The renderer uses the same polyline and widths, so no invisible shortcut exists through the dry land. The sharp turn narrows to approximately **10.5 metres**, and the narrow bridge prevents swinging the stern sideways too early. Stone-bank glancing impacts that are significant at speed receive penalties; slow movement and tiny sampling overlap remain tolerated. The old, easily shortcut widening and projecting stone wharf are removed.
+
+Automated physics tests compare a slower helm using short ahead-thrust bursts with a flat-out late approach. The slower run completes the course and the two-second lock stop without damaging bank contact; the flat-out comparison scrapes the stone corner. A sufficiently skilled full-speed trajectory may still be possible, but the stage now offers a physical cost to an ordinary high-speed line, rather than enforcing an arbitrary speed limit. The boat's mass, propeller, rudder, inertia and hydrodynamic equations are unchanged.
+
+[Play Bridge & Bend](https://charlie9578.github.io/power-canal/?course=technical&v=20261122-15).
