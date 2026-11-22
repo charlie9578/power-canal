@@ -1,11 +1,11 @@
-import { resistanceComponents } from './hydrodynamics.js?v=20261122-12';
-import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from './ghost.js?v=20261122-12';
-import { drawFields, drawTowpath, drawStoneBridge } from './scenery.js?v=20261122-12';
-import { updateLockStop, LOCK_STOP } from './lock-stop.js?v=20261122-12';
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-12';
-import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-12';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-12';
-import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-12';
+import { resistanceComponents } from './hydrodynamics.js?v=20261122-13';
+import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from './ghost.js?v=20261122-13';
+import { drawFields, drawTowpath, drawStoneBridge } from './scenery.js?v=20261122-13';
+import { updateLockStop, LOCK_STOP } from './lock-stop.js?v=20261122-13';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-13';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-13';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-13';
+import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-13';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
@@ -38,7 +38,7 @@ function readBest(){return readBestFor(selectedCourse);}
 let best=readBest();
 function renderCoursePicker(){
   const course=getActiveCourse();
-  $('stageNumber').textContent='POWER CANAL v0.4.2 / STAGE '+course.number;
+  $('stageNumber').textContent='POWER CANAL v0.4.3 / STAGE '+course.number;
   $('stageName').textContent=course.name;
   $('startDescription').textContent=course.description;
   $('homeProgress').textContent=['classic','test'].filter(id=>readBestFor(id)!==null).length+' / 2';
@@ -183,7 +183,9 @@ function updateUI(){
   // Report total speed over ground, including sideways drift. Previously
   // the speedometer omitted lateral velocity while the finish test did not.
   const speed=Math.hypot(boat.vx,boat.vy);
-  ui.speed.textContent=(speed*2.23694).toFixed(1);
+  // Two decimals near the lock expose the precise 0.18 mph threshold;
+  // the usual one-decimal display remains less busy while cruising.
+  ui.speed.textContent=(speed*2.23694).toFixed(boat.y<LOCK.startY+95?2:1);
   ui.state.textContent=paused?'PAUSED':boat.throttle<-.05?'ASTERN · '+Math.round(-boat.throttle*100)+'%':boat.throttle>.05?'AHEAD · '+Math.round(boat.throttle*100)+'%':'NEUTRAL · COASTING';
   const section=waterwayAt(boat.y);
   ui.waterLabel.textContent=section.name;
@@ -207,13 +209,11 @@ function updateUI(){
       case 'far-gate':
         label='TOO FAR FORWARD · REVERSE';break;
       case 'side-wall':
-        label='CENTRE BOAT BETWEEN LOCK WALLS';break;
+        label='KEEP ENTIRE BOAT INSIDE LOCK WALLS';break;
       case 'moving':
-        label='SLOW TO 0.4 MPH · NOW '+(docking.speed*2.23694).toFixed(1);break;
-      case 'turning':
-        label='SETTLE THE TURN · CENTRE TILLER';break;
+        label='SLOW BELOW 0.18 MPH · NOW '+(docking.speed*2.23694).toFixed(2);break;
       case 'holding':
-        label='BOAT INSIDE · HOLD STILL '+percent+'%';break;
+        label='STOP FOR 2 SECONDS · '+percent+'%';break;
       case 'complete':
         label='LOCK SECURED';break;
     }
@@ -499,12 +499,10 @@ function drawLock(){
       ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+13,y);ctx.stroke();
     }
   }
-  // Dashed central alignment and the full-hull stopping area.
-  ctx.save();ctx.setLineDash([8,8]);ctx.strokeStyle='#f8e7af9c';
-  ctx.lineWidth=1.5;ctx.beginPath();
-  ctx.moveTo((entrance.x+far.x)/2,upper+25);
-  ctx.lineTo((entrance.x+far.x)/2,lower-25);ctx.stroke();
-  ctx.restore();
+  // The entire chamber is a valid stopping zone; no middle target
+  // or centreline should suggest that precise centring is required.
+  ctx.fillStyle='#b8e4c51a';
+  ctx.fillRect(entrance.x+4,upper+18,chamberWidth-8,Math.max(0,length-36));
   // Far end only: genuinely closed lock gates. Entrance is OPEN!
   ctx.fillStyle='#44382c';ctx.fillRect(entrance.x-2,upper-7,chamberWidth+4,14);
   ctx.fillStyle='#c99b60';
