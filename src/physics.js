@@ -7,7 +7,8 @@
  *
  * Heading 0 points north (-world y); positive heading/yaw is clockwise.
  * Body u is ahead-positive; body v is starboard-positive.
- * The tiller is mechanically linked to the rudder: NO artificial input lag.
+ * The tiller is mechanically connected to the rudder; finite human movement
+ * speed limits the tiller/rudder sweep, without an arbitrary actuator delay.
  *
  * These coefficients are engineering estimates, not tank-test-identified
  * derivatives for a particular narrowboat. See PHYSICS.md.
@@ -17,20 +18,21 @@ export const BOAT=Object.freeze({
   yawRadiusFactor:0.29,       // yaw radius of gyration / hull length
   surgeAddedMassRatio:0.08,   // added water inertia in surge / mass
   swayAddedMassRatio:0.72,    // added water inertia in sway / mass
-  yawAddedInertiaRatio:0.45,  // added moment of inertia / dry yaw inertia
+  yawAddedInertiaRatio:0.80,  // added moment of inertia / dry yaw inertia
   engineForce:6200,           // full ahead bollard thrust, approximate
   reverseFraction:0.55,       // less useful thrust astern
   dragLinear:650,             // longitudinal viscous resistance N/(m/s)
   dragQuadratic:1660,         // includes wave-making resistance
-  crossflowLinear:330,        // lateral drag per metre of hull
-  crossflowQuadratic:440,     // lateral quadratic drag per metre of hull
+  crossflowLinear:240,        // lateral drag per metre of hull
+  crossflowQuadratic:330,     // lateral quadratic drag per metre of hull
   rudderArea:0.72,            // m^2 estimated underwater rudder area
   rudderLiftSlope:1.65,       // reduced from ideal foil in prop turbulence
   rudderLever:0.45,           // rudder x = -0.45 L
   propellerJet:1.25,          // speed of jet at full ahead in m/s
   rudderReverseFactor:0.12,   // rudder has little authority when astern
   lateralCentre:-0.65,        // m; centre of lateral resistance behind CG
-  maxRudder:0.67,             // ~38 degrees, fixed tiller -> rudder
+  maxRudder:0.67,
+  maxRudderRate:2.2, // rad/s, ~0.30 s from centre to full tiller lock             // ~38 degrees, fixed tiller -> rudder
   bankBowForce:220,           // N/(m/s)^2 near bank, bow pushed away
   bankSternForce:260,         // N/(m/s)^2 near bank, stern sucked toward
   waterDensity:1000
@@ -136,9 +138,12 @@ export function bodyAccelerations(u,v,r,rudder,throttle,c=BOAT,water=defaultWate
 }
 export function stepBoat(b,input,dt,c=BOAT,water=defaultWater){
   if(!(dt>0))return b;
-  const rudder=clamp(input.tiller,-1,1)*c.maxRudder;
+  const targetRudder=clamp(input.tiller,-1,1)*c.maxRudder;
   const throttle=clamp(input.throttle,-1,1);
-  // Mechanical swan neck: the tiller and rudder move together.
+  // Direct mechanical tiller/rudder connection; rate limit is human arm
+  // movement, not latency between rudder and tiller.
+  const maxTravel=c.maxRudderRate*dt;
+  const rudder=b.rudder+clamp(targetRudder-b.rudder,-maxTravel,maxTravel);
   b.rudder=rudder;b.throttle=throttle;
   const {u:initialU,v:initialV}=bodyVelocity(b);
   const a=bodyAccelerations(initialU,initialV,b.yawRate,rudder,throttle,c,water);
