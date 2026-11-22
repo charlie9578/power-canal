@@ -1,11 +1,11 @@
-import { resistanceComponents } from './hydrodynamics.js?v=20261122-14';
-import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from './ghost.js?v=20261122-14';
-import { drawFields, drawTowpath, drawStoneBridge } from './scenery.js?v=20261122-14';
-import { updateLockStop, LOCK_STOP } from './lock-stop.js?v=20261122-14';
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-14';
-import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-14';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-14';
-import { START_Y, LOCK, COURSES, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, checkObstacles, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-14';
+import { resistanceComponents } from './hydrodynamics.js?v=20261122-15';
+import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from './ghost.js?v=20261122-15';
+import { drawFields, drawTowpath, drawStoneBridge } from './scenery.js?v=20261122-15';
+import { updateLockStop, LOCK_STOP } from './lock-stop.js?v=20261122-15';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-15';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-15';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-15';
+import { START_Y, LOCK, COURSES, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, checkObstacles, insideLock, pointOnHull, canalEnvironmentAt, waterwayAtPosition, technicalPath, technicalRouteProgress } from './course.js?v=20261122-15';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
@@ -39,7 +39,7 @@ function readBest(){return readBestFor(selectedCourse);}
 let best=readBest();
 function renderCoursePicker(){
   const course=getActiveCourse();
-  $('stageNumber').textContent='POWER CANAL v0.5.0 / STAGE '+course.number;
+  $('stageNumber').textContent='POWER CANAL v0.5.1 / STAGE '+course.number;
   $('stageName').textContent=course.name;
   $('startDescription').textContent=course.description;
   $('homeProgress').textContent=COURSES.filter(c=>readBestFor(c.id)!==null).length+' / '+COURSES.length;
@@ -135,7 +135,9 @@ function simulate(dt){
     // A few centimetres of collision-hull penetration are sampling noise,
     // especially at bends: nudge the hull clear without cancelling its speed.
     // Larger impacts still progressively dissipate motion and incur penalties.
-    boat.x+=bank.normalX*Math.min(bank.depth*.25,.5);
+    const push=Math.min(bank.depth*.25,.5);
+    boat.x+=bank.normalX*push;
+    boat.y+=(bank.normalY||0)*push;
     const severity=clamp((bank.depth-.035)/.30,0,1);
     if(severity>0){
       const contactDrag=2.4*severity;
@@ -203,7 +205,7 @@ function updateUI(){
   // the usual one-decimal display remains less busy while cruising.
   ui.speed.textContent=(speed*2.23694).toFixed(boat.y<LOCK.startY+95?2:1);
   ui.state.textContent=paused?'PAUSED':boat.throttle<-.05?'ASTERN · '+Math.round(-boat.throttle*100)+'%':boat.throttle>.05?'AHEAD · '+Math.round(boat.throttle*100)+'%':'NEUTRAL · COASTING';
-  const section=waterwayAt(boat.y);
+  const section=waterwayAtPosition(boat);
   ui.waterLabel.textContent=section.name;
   ui.waterInfo.textContent='DEPTH '+section.depth.toFixed(2)+'m · WIDTH '+section.width.toFixed(1)+'m';
   const docking=lockState??updateLockStop(boat,0,0,BOAT.length,BOAT.beam);
@@ -243,11 +245,12 @@ function updateUI(){
     // Routine navigation guidance belongs in the control-deck footer,
     // not in a banner over the water and hydraulic information.
     if(selectedCourse==='technical'){
-      const z=getActiveCourse().turningZone;
-      if(z && boat.y<=z.startY+16 && boat.y>=z.endY){
-        ui.hint.textContent=boat.y>z.centreY
-          ? 'SLOW · HARD TILLER':'PULSE AHEAD · CLEAR WHARF';
-      }else ui.hint.textContent='WINDING HOLE AHEAD';
+      const pos=technicalRouteProgress(boat);
+      if(pos.s<164)ui.hint.textContent='STONE BRIDGE AHEAD';
+      else if(pos.s<195)ui.hint.textContent='BRAKE · 90° RIGHT SOON';
+      else if(pos.s<240)ui.hint.textContent='HARD RIGHT · PULSE AHEAD';
+      else if(pos.s<303)ui.hint.textContent='FOLLOW EAST CUT';
+      else ui.hint.textContent='WATCH THE TOWPATH';
     }else ui.hint.textContent=selectedCourse==='test'?'WATCH DEPTH & WIDTH':'WATCH YOUR STERN';
   }
   ui.feedback.textContent=messageTime>0?message:paused?'PAUSED':'';
@@ -396,50 +399,70 @@ function drawAqueductDeck(low,high){
   }
 }
 function drawTurningFeatures(low,high){
-  const course=getActiveCourse();
-  if(!course.turningZone)return;
-  // An actual stone quay protrudes from the right shore. Its outline uses
-  // the same metre coordinates as the collision checker, so the player can
-  // see precisely what the hull must avoid.
-  for(const quay of course.obstacles??[]){
-    if(quay.top<low||quay.bottom>high)continue;
-    const corners=[
-      project(quay.left,quay.top),project(quay.right,quay.top),
-      project(quay.right,quay.bottom),project(quay.left,quay.bottom)
-    ];
-    const shadow=corners.map(p=>({x:p.x+3,y:p.y+4}));
-    polygon(shadow,'#19363c66',null);
-    polygon(corners,'#a69c88','#635e51',3);
-    for(let y=quay.bottom+4;y<quay.top;y+=6){
-      const a=project(quay.left,y),b=project(quay.right,y);
-      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
-      ctx.strokeStyle='#726b5b';ctx.lineWidth=1;ctx.stroke();
-      const bollard=project(quay.left+1.1,y);
-      ctx.fillStyle='#e1cba5';ctx.beginPath();
-      ctx.arc(bollard.x,bollard.y,1.6,0,Math.PI*2);ctx.fill();
-    }
-    const label=project(quay.left+5,(quay.top+quay.bottom)/2);
-    ctx.textAlign='center';ctx.font='bold 10px DM Sans';
-    ctx.fillStyle='#f8e6c4';ctx.fillText('STONE',label.x,label.y-4);
-    ctx.fillText('WHARF',label.x,label.y+8);
-  }
+  if(getActiveCourse().id!=='technical')return;
+  // The world-space warning sits alongside the actual bridge and turn,
+  // unlike text over the HUD. It follows the 2D geometry in both directions.
   for(const sign of [
-    {y:-80,label:'SLOW TO TURN'},
-    {y:-106,label:'TILLER + THRUST'},
-    {y:-185,label:'NARROW EXIT'}
+    {x:-9,y:-71,label:'BRIDGE AHEAD'},
+    {x:-9,y:-98,label:'90° RIGHT · 22 M'},
+    {x:-8,y:-117,label:'SLOW · TILLER'},
+    {x:29,y:-139,label:'USE AHEAD THRUST'}
   ]){
-    if(sign.y<low||sign.y>high)continue;
-    const x=centreAt(sign.y)-halfWidthAt(sign.y)-4.5;
-    const p=project(x,sign.y);
-    ctx.fillStyle='#344b3d';ctx.fillRect(p.x-2,p.y,4,24);
-    ctx.fillStyle='#f2d7a2';ctx.fillRect(p.x-99,p.y-14,103,23);
-    ctx.strokeStyle='#775a3d';ctx.lineWidth=1.5;
-    ctx.strokeRect(p.x-99,p.y-14,103,23);
-    ctx.textAlign='center';ctx.font='bold 9px DM Sans';
-    ctx.fillStyle='#533e2d';ctx.fillText(sign.label,p.x-47,p.y+1);
+    if(sign.y<low-25||sign.y>high+25)continue;
+    const p=project(sign.x,sign.y);
+    ctx.fillStyle='#5f523e';ctx.fillRect(p.x-2,p.y,4,26);
+    ctx.fillStyle='#f1d2a2';ctx.fillRect(p.x-62,p.y-18,124,26);
+    ctx.strokeStyle='#806949';ctx.lineWidth=2;
+    ctx.strokeRect(p.x-62,p.y-18,124,26);
+    ctx.fillStyle='#4d3829';ctx.font='bold 10px DM Sans';ctx.textAlign='center';
+    ctx.fillText(sign.label,p.x,p.y);
   }
 }
+function drawTechnicalCanal(){
+  ctx.fillStyle='#b9cca3';ctx.fillRect(0,0,width,height);
+  const path=technicalPath();
+  // Thick variable-width strokes make a genuine right-angle canal.
+  // Drawing and hull collision are both based on these identical path
+  // vertices and technicalSectionAt(s) widths. No y-slice shortcut.
+  for(const pass of ['bank','water']){
+    for(let i=0;i<path.length-1;i++){
+      const a=path[i],b=path[i+1];
+      const mid=technicalRouteProgress({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+      const size=mid.width+(pass==='bank'?2.6:0);
+      const A=project(a.x,a.y),B=project(b.x,b.y);
+      if(Math.max(A.x,B.x)<-80||Math.min(A.x,B.x)>width+80||
+         Math.max(A.y,B.y)<-80||Math.min(A.y,B.y)>height+80)continue;
+      ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);
+      ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=size*scale;
+      ctx.strokeStyle=pass==='bank'
+        ? mid.bank==='brick'?'#978574':'#c9bca5'
+        : mid.depth>1.8?'#689dab':'#7caeba';
+      ctx.stroke();
+    }
+  }
+  // Narrow gravel towpath follows the west/outer side of the real waterway.
+  for(let i=0;i<path.length-1;i+=2){
+    const a=path[i],b=path[Math.min(path.length-1,i+2)];
+    const mid=technicalRouteProgress({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+    const dx=b.x-a.x,dy=b.y-a.y,n=Math.hypot(dx,dy);
+    if(n<.01)continue;
+    const offset=mid.width/2+2.2;
+    const nx=dy/n,ny=-dx/n;
+    const A=project(a.x+nx*offset,a.y+ny*offset);
+    const B=project(b.x+nx*offset,b.y+ny*offset);
+    if(Math.max(A.x,B.x)<-30||Math.min(A.x,B.x)>width+30||
+       Math.max(A.y,B.y)<-30||Math.min(A.y,B.y)>height+30)continue;
+    ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);
+    ctx.strokeStyle='#dac9a5';ctx.lineWidth=2.1*scale;ctx.lineCap='round';ctx.stroke();
+  }
+  drawTurningFeatures(camera.y-height/scale,camera.y+height/scale);
+  for(const bridge of getActiveCourse().bridges)
+    drawStoneBridge(ctx,{bridge,project,centreAt,scale,width,height});
+  drawLockApproach();
+  drawLock();
+}
 function drawCanal(){
+  if(getActiveCourse().id==='technical'){drawTechnicalCanal();return;}
   ctx.fillStyle=getActiveCourse().id==='test'?'#b6c9a4':getActiveCourse().id==='technical'?'#b4c49e':'#c5d4ae';
   ctx.fillRect(0,0,width,height);
   const ya=camera.y-(height/scale),yb=camera.y+(height/scale);
