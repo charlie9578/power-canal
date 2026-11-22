@@ -152,3 +152,5 @@ The canal banks are now collision checked by projecting the entire sampled narro
 Automated physics tests compare a slower helm using short ahead-thrust bursts with a flat-out late approach. The slower run completes the course and the two-second lock stop without damaging bank contact; the flat-out comparison scrapes the stone corner. A sufficiently skilled full-speed trajectory may still be possible, but the stage now offers a physical cost to an ordinary high-speed line, rather than enforcing an arbitrary speed limit. The boat's mass, propeller, rudder, inertia and hydrodynamic equations are unchanged.
 
 [Play Bridge & Bend](https://charlie9578.github.io/power-canal/?course=technical&v=20261122-15).
+
+**Replay compatibility:** The right-angle rebuild is a new time-trial layout, so Stage 03 uses a fresh best-time/ghost slot. Previous Winding Hole records remain untouched in browser storage but are not compared or replayed on the new Bridge & Bend geometry. All Stage 01 and Stage 02 bests and ghosts are preserved.
