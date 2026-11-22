@@ -64,7 +64,7 @@ export const COURSES=Object.freeze([
    // Stone loading quay projects from the outside/right bank into the hole.
    // This prevents taking the shortcut at cruising speed. The inner/west
    // approach has a full-hull-width route around it at slow speed.
-   obstacles:[{id:'wharf',name:'STONE WHARF',left:37.5,right:54,
+   obstacles:[{id:'wharf',name:'STONE WHARF',left:36.6,right:54,
      top:-155,bottom:-183}]}
 ]);
 
