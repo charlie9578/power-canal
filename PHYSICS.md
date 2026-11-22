@@ -1,4 +1,4 @@
-# Power Canal physics model (v0.2.1)
+# Power Canal physics model (v0.3.0)
 
 ## Scope and confidence
 
@@ -11,7 +11,10 @@ The objective is to retain a plausible causal model without CFD, while making th
 1. [Thor I. Fossen, *Marine Craft Model*](https://fossen.biz/html/marineCraftModel.html) — rigid-body/added-mass inertia, Coriolis and damping decomposition, and equations of motion.
 2. [Fossen, *Handbook of Marine Craft Hydrodynamics and Motion Control*, Ch. 6 and 9](https://doi.org/10.1002/9781119575016.ch6) — manoeuvring models, cross-flow damping, rudder/propeller interaction.
 3. [OE3036 lecture notes, Nomoto models](https://oe3036.mavlab.in/ch_05/ch_05_nomoto) — linear steering dynamics, course stability and Nomoto time constant.
-4. [Practical Boat Owner, inland boating beginner's guide](https://www.pbo.co.uk/cruising/inland-boating-in-the-uk-a-beginners-guide-87875) — narrowboat rudder/propeller handling, inertia and stern swing.
+4. [ITTC resistance guidelines](https://www.ittc.info/media/11780/75-02-02-01.pdf) — ITTC-1957 skin friction.
+5. [PIANC inland navigation / Schijf calculations](https://www.pianc.org/wp-content/uploads/2024/02/34th-World-Congress-Panama-Full-Papers-Inland-Navigation-Part-2.pdf) — confined-water hydraulic limit.
+6. [Yasukawa and Yoshimura, MMG standard manoeuvring method](https://doi.org/10.1007/s00773-014-0293-y) — open-water propeller thrust coefficients.
+7. [Practical Boat Owner, inland boating beginner's guide](https://www.pbo.co.uk/cruising/inland-boating-in-the-uk-a-beginners-guide-87875) — narrowboat rudder/propeller handling, inertia and stern swing.
 
 These references inform the model *form*, not the values chosen for this particular vessel.
 
@@ -43,11 +46,60 @@ where `m_x`, `m_y` and `I` include diagonal water-added inertia. The translation
 
 `m=14,000 kg`, length `L=14.6 m`, beam `2.08 m`, approximate draft `0.65 m`. The dry yaw moment is `m*(0.29L)^2`. Added inertia is set at 8% of mass for surge, 72% for sway, and 80% of the dry yaw inertia (v0.2.1 tuning). These are **assumed tunables**, not measured for this hull.
 
-### Propulsion and longitudinal drag
+### Propulsion and longitudinal resistance (v0.3.0)
 
-The positive ahead bollard-thrust estimate is 6.2 kN, with a 55% reverse-thrust factor. Speed-dependent drag combines linear and quadratic terms. The drag is multiplied by a monotone approximation based on channel blockage (underwater hull cross-section / waterway cross-section) and shallowness. It is **not** an accurate Froude/critical-depth squat or wave resistance solver.
+The previous constant-thrust and lumped drag model is replaced by a **separated, speed-dependent** longitudinal force model in `src/hydrodynamics.js`.
 
-Speed emerges by solving thrust and resistance, **not** from a hard maximum-speed clamp. Engine power is represented by available thrust; the combined lever's eleven notches map linearly to it for now.
+**ITTC-1957 viscous friction:**
+
+```text
+Re = V*L/nu                      (nu = 1.004e-6 m^2/s, fresh water at 20 C)
+Cf = 0.075 / (log10(Re)-2)^2
+S = L*(B+2*T) + 1.2*B*T         (estimated box-like wetted surface, m^2)
+Rf = 0.5*rho*S*V^2*Cf
+Rform = Rf*0.30                  (estimated hull-form factor)
+```
+
+The ITTC friction law is a standard correlation, but the wetted-area approximation and form factor must be calibrated for a specific hull. A small linear drag term (80 N per m/s) is added for low-speed manoeuvring, where the turbulent ITTC law is not valid.
+
+**Length-dependent wave residual:**
+
+```text
+FrL = V/sqrt(g*L)
+Cwave = 0.015*(FrL/0.22)^4
+Rwave = 0.5*rho*S*V^2*Cwave
+```
+
+This is a **gameplay approximation**, NOT an established empirical formula for British narrowboat wave resistance. The Froude scaling lets the wave-resistance contribution change with length. The visual bow wave is now linked to the calculated `Rwave` plus a portion of restricted-channel resistance, but it remains a stylised drawing rather than a free-surface fluid solution.
+
+**Restricted water and Schijf limiting speed:**
+
+```text
+beta = (0.96*B*T)/(W*h)         (midship section factor estimated)
+beta = 1 + 0.5*Fcrit^2 - 1.5*Fcrit^(2/3)
+Vlim = Fcrit*sqrt(g*h)
+q = V/Vlim
+Rbase = Rf + Rform + Rwave + 80*V
+Rrestricted = Rbase*8*(beta/(1-beta))*q^4/max(0.08,1-q^2)
+Rtotal = Rbase + Rrestricted
+```
+
+The Schijf relation is a genuine hydraulic estimate of **limiting speed**, solved on the subcritical branch by bisection. It does **not** provide a force or resistance curve. The `Rrestricted` equation above is an *explicitly unvalidated*, regularised game approximation which increases sharply near that limit. Its coefficients should ultimately be fitted using restricted-water resistance measurements, not interpreted as a textbook law.
+
+**Open-water propeller thrust:**
+
+```text
+n = 8.8*sqrt(abs(throttle))                 (shaft rotations/s)
+D = 0.52 m                                 (assumed diameter)
+J = 0.85*u/(signed_n*D)                    (estimated wake fraction)
+KT(J) = clamp(0.29-0.60*J,0,0.52)         (assumed linear KT curve)
+Fprop = sign(throttle)*rho*n^2*D^4*KT*(1-0.05)*f_reverse
+f_reverse = 1 ahead / 0.55 astern
+```
+
+`rho*n^2*D^4*KT(J)` is the textbook propeller force relationship. The particular propeller K_T curve, shaft-RPM schedule, wake fraction, and thrust deduction are **estimates**, not narrowboat propeller data. Shaft speed responds instantaneously in this prototype and engine torque/power limits are not modelled yet.
+
+The rudder's wash velocity is derived from actual forward propeller thrust so steering and longitudinal propulsion stay connected. At steady speed, thrust and total resistance balance; there is no arbitrary mph clamp. The baseline model predicts about **3.68 mph** at full ahead in a straight 14 m-wide, 1.55 m-deep canal, and about **2.83 mph** in a straight 5.4 m-wide, 1.2 m-deep canal. These are *simulated*, not measured speeds.
 
 ### Cross-flow and yaw
 
@@ -82,7 +134,7 @@ The force applies a moment about the CG and can change the intended heading. Col
 
 ## Right-half-plane poles and steering control
 
-A direct-linked tiller is an **actuator** (instantaneous angle here); delayed boat direction is the *plant* response. A sluggish response is not proof of a right-half-plane (RHP) pole.
+The tiller/rudder connection has a short human movement-rate limit; delayed boat direction is the *plant* response. A sluggish response is not proof of a right-half-plane (RHP) pole.
 
 The conventional first-order Nomoto yaw-rate model is
 
@@ -97,11 +149,11 @@ In our 3-DOF model, `directionalPoles(speed, config, water)` numerically compute
 
 Using `lateralCentre: 10` deliberately makes one pole positive for testing that the model can identify directional instability; it is **not** a recommended or physically identified hull parameter.
 
-Because equilibrium at nonzero speed requires a propulsive force, the frozen-speed calculation excludes surge dynamics and is a local **directional** analysis only, not a full equilibrium stability proof. Deriving steering transfer-function zeros and analysing wind/current are future tasks.
+Because equilibrium at nonzero speed requires a propulsive force, the frozen-speed calculation excludes surge dynamics and is a local **directional** analysis only, not a full equilibrium stability proof. An additional diagnostic, `nomotoAtSpeed(speed,config,water)` in `src/steering-analysis.js`, balances propeller thrust with resistance, linearises the yaw/sway dynamics, and calculates the **second-order Nomoto** transfer coefficients and transmission zero. At 1.25 m/s in the reference canal the estimated poles are approximately -0.176/s and -0.266/s, with a left-half-plane zero around -0.202/s. These are results from provisional model coefficients. Analysing wind/current remains future work.
 
 ## Calibration / validation plan
 
-1. **Straight-line runs** with several throttle notches: measure speed vs setting, acceleration, coast-down and reverse stopping distance. Fit thrust, forward drag and added surge mass.
+1. **Straight-line runs** across throttle notches and shaft speeds: measure acceleration, coasting and reverse stopping; fit propeller KT-J curve, hull form factor, wave residual and added surge mass.
 2. **Rudder step / turning circle** at a known speed: compare rudder angle, yaw-rate rise, steady turning radius and stern swing. Fit rudder force, yaw inertia and lateral hull drag.
 3. **Zigzag trials** (e.g. small alternating tiller angles): identify the steering gain and time constants; compare simulated/observed yaw-rate and heading curves.
 4. **Deep/open versus shallow/narrow canal**: estimate speed loss and bank-force differences.
