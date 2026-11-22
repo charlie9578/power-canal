@@ -27,8 +27,9 @@ test('the original stage remains the default, with an independent second route',
     assert.throws(()=>setActiveCourse('missing'),RangeError);
     assert.equal(getActiveCourse().id,'test');
     setActiveCourse('technical');
-    assert.equal(LOCK.centreX,35);
-    assert.equal(getActiveCourse().obstacles.length,1);
+    assert.equal(LOCK.centreX,72);
+    assert.equal(getActiveCourse().bridges[0].y,-93);
+    assert.equal(getActiveCourse().rightTurn.cornerY,-115);
   }finally{setActiveCourse(old);}
 });
 
