@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBoat, BOAT } from '../src/physics.js';
-import { LOCK, setActiveCourse, getActiveCourse, insideLock } from '../src/course.js';
-import { LOCK_STOP, updateLockStop } from '../src/lock-stop.js';
+import { LOCK, setActiveCourse, getActiveCourse, insideLock, lockClearance } from '../src/course.js';
+import { LOCK_STOP, updateLockStop, lockSpeedMph } from '../src/lock-stop.js';
 
 function inRoute(route,fn){
   const previous=getActiveCourse().id;
@@ -28,7 +28,7 @@ test('stopping at 0.18 mph needs two full seconds',()=>{
   const r=runHold(b,2.01);
   assert.equal(r.complete,true);
   assert.equal(r.progress,1);
-  b.vy=-.081;
+  b.vy=-.085;
   assert.equal(runHold(b,4).complete,false);
 });
 
@@ -59,7 +59,7 @@ for(const course of ['classic','test']){
     assert.equal(beyond.status,'far-gate');
     assert.equal(beyond.complete,false);
 
-    b.y=(LOCK.startY+LOCK.endY)/2;b.x=LOCK.centreX+1.5;
+    b.y=(LOCK.startY+LOCK.endY)/2;b.x=LOCK.centreX+1.7;
     assert.equal(insideLock(b,BOAT.length,BOAT.beam),false);
     const outside=runHold(b,4);
     assert.equal(outside.status,'side-wall');
@@ -75,15 +75,70 @@ test('ground-speed including lateral drift is enforced, independent of heading',
   assert.equal(runHold(b,2.1).complete,true,
     'yaw alone is not a reason to reject a hull that fits in the chamber');
 }));
-test('a brief borderline speed spike only reduces accumulated progress',()=>inRoute('classic',()=>{
+test('a brief borderline speed spike PAUSES progress rather than erasing it',()=>inRoute('classic',()=>{
   const b=atLock();b.vy=-.06;
   const started=runHold(b,1.5);
   assert.ok(started.progress>.7);
   b.vy=-.09;
   const interrupted=runHold(b,.15,started.hold);
-  assert.ok(interrupted.progress>.5);
+  assert.equal(interrupted.status,'settling');
+  assert.equal(interrupted.hold,started.hold);
   b.vy=-.05;
   assert.equal(runHold(b,1.5,interrupted.hold).complete,true);
   b.vy=-.9;
   assert.equal(updateLockStop(b,started.hold,1/60,BOAT.length,BOAT.beam).progress,0);
+}));
+
+test('the displayed 0.18 mph always qualifies for a lock countdown',()=>inRoute('classic',()=>{
+  const b=atLock();
+  // 0.082m/s displays 0.18 mph although it previously failed the internal
+  // 0.08m/s check. The acceptance and the gauge must agree.
+  b.vy=-.082;
+  assert.equal(lockSpeedMph(.082),.18);
+  const tick=updateLockStop(b,0,1/60,BOAT.length,BOAT.beam);
+  assert.equal(tick.inside,true);
+  assert.equal(tick.speedShown,.18);
+  assert.equal(tick.status,'holding');
+  assert.ok(tick.hold>0,'countdown must begin on first qualifying frame');
+  assert.ok(runHold(b,2.05).complete);
+  b.vy=-.085;
+  assert.equal(lockSpeedMph(.085),.19);
+  assert.equal(runHold(b,2.05).complete,false);
+}));
+
+test('near-wall or end-gate micro-clearances do not block docking',()=>inRoute('technical',()=>{
+  const b=atLock(LOCK.centreX+1.40,LOCK.startY-7.16);
+  const clearance=lockClearance(b,BOAT.length,BOAT.beam);
+  assert.ok(clearance.right<0&&clearance.right>-.25,
+    'hull just crosses illustrated side-wall by a few centimetres');
+  assert.ok(clearance.entrance<0&&clearance.entrance>-.25,
+    'stern just crosses illustrated entrance by a few centimetres');
+  assert.equal(insideLock(b,BOAT.length,BOAT.beam),false,
+    'exact strict geometry detects the tiny overlap');
+  b.vy=0;
+  const stop=runHold(b,2.1);
+  assert.equal(stop.inside,true);
+  assert.equal(stop.complete,true);
+}));
+
+test('a started countdown survives centimetre-scale hull movement',()=>inRoute('test',()=>{
+  const b=atLock(LOCK.centreX+1.40);
+  b.vx=.04;
+  const started=runHold(b,1);
+  assert.ok(started.hold>.9);
+  b.x=LOCK.centreX+1.67; // past entry margin, within exit margin
+  assert.equal(insideLock(b,BOAT.length,BOAT.beam,LOCK_STOP.enterTolerance),false);
+  assert.equal(insideLock(b,BOAT.length,BOAT.beam,LOCK_STOP.exitTolerance),true);
+  assert.equal(runHold(b,1.1,started.hold).complete,true);
+  b.x=LOCK.centreX+2.3;
+  const lost=updateLockStop(b,started.hold,1/60,BOAT.length,BOAT.beam);
+  assert.equal(lost.hold,0,'large movement out of the lock cancels hold');
+}));
+
+test('at speeds above the display threshold a countdown never starts',()=>inRoute('classic',()=>{
+  const b=atLock();b.vy=-.09;
+  const stop=runHold(b,4);
+  assert.equal(stop.status,'moving');
+  assert.equal(stop.hold,0);
+  assert.equal(stop.speedShown,.20);
 }));
