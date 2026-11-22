@@ -18,7 +18,7 @@ Open [http://localhost:8000](http://localhost:8000) on your computer. To play fr
 
 **Touch controls**
 
-- **Left throttle:** drag up for ahead, drag down for reverse, middle for neutral. It stays at the selected setting after release.
+- **Left throttle:** drag up for five notched ahead settings (+1 to +5), drag down for five notched astern settings (−1 to −5), with neutral (0) in the middle. Each notch is 20% power; the lever stays in the selected position. The left-hand lever now uses more of the control deck height.
 - **Right tiller:** drag towards port or starboard; it stays where you leave it. **Real tiller behaviour:** pushing the handle towards starboard turns the *bow to port*. The boat continues rotating for a while after the handle returns to centre.
 - Pause (Ⅱ) and restart (↻) are in the control deck.
 - Desktop fallback: **↑ / ↓** adjust throttle, **← / →** adjust tiller, **Space** neutral, **C** centre tiller.
@@ -33,7 +33,7 @@ Contact with the bank, a bridge, or the far lock gate slows your boat; significa
 
 The deterministic fixed-timestep model in `src/physics.js` includes:
 
-- Boat mass, forward and reverse engine thrust, longitudinal linear/quadratic drag, and speed-dependent resistance.
+- Boat mass, forward and reverse engine thrust, longitudinal linear/quadratic drag, and speed-dependent resistance.\n- Stylised V-shaped bow waves aligned to actual travel velocity, lingering world-space trailing wake, and throttle-dependent propeller wash that reverses direction in astern.
 - Lateral velocity and damping, rather than steering the heading vector directly.
 - A rudder response lag, flow-over-rudder turning force, low-speed prop-wash term, and yaw inertia/damping.
 - A hull-length-based boundary check for bank contact, bridge checks, and a full-hull lock finish.
@@ -46,15 +46,15 @@ The deterministic fixed-timestep model in `src/physics.js` includes:
 - `style.css`: responsive portrait mobile layout.
 - `src/physics.js`: boat motion model.
 - `src/course.js`: fictional canal centreline, banks, bridges and lock geometry.
-- `src/main.js`: canvas rendering, collision/penalty rules, touch/keyboard input, simulation loop and timing.
+- `src/main.js`: canvas rendering, collision/penalty rules, touch/keyboard input, simulation loop and timing.\n- `src/water.js`: movement-aligned, world-space wake samples and their lifetimes.\n- `src/throttle.js`: 11-position combined throttle and reverse lever.
 - `tests/physics.test.js`: smoke tests for key handling and finish geometry.
 
 Run tests with `npm test` (requires modern Node.js; only the tests need Node).
 
 ## Planned next steps
 
-1. Playtest and tune steering response, speed, stopping distance and penalty thresholds on actual phones.
-2. Add a more physical canal cross-section: shallow-water drag, bank suction and visible bow/wake feedback.
+1. Playtest stepped throttle usability and the new water effects on actual phones; tune steering response, speed, stopping distance and penalty thresholds.
+2. Add a more physical canal cross-section: shallow-water drag and bank suction; refine the stylised bow/wake visuals.
 3. Add a second boat with approximation-based pressure interaction for overtaking.
 4. Add replay/ghost racing, multiple stages, and an optional steering-assist mode.
 5. Improve canal banks, bridges and lock visuals while retaining inexpensive 2D canvas rendering.
