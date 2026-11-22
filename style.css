@@ -17,12 +17,17 @@
 .controls{min-height:0;flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .control-card{min-height:0;overflow:hidden;border:1px solid #446368;border-radius:12px;background:linear-gradient(150deg,#1b3c40,#173438);padding:9px 12px;display:flex;flex-direction:column}
 .card-title{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1.6px}.card-title span{color:#9abbb0}.card-title strong{font-weight:800}
-.throttle-interface{display:flex;align-items:center;justify-content:center;flex:1;min-height:0;gap:12px;padding:6px 0}
-.throttle-labels{height:100%;max-height:157px;display:flex;flex-direction:column;justify-content:space-between;padding:8px 0;font-size:9px;font-weight:800;color:#99b7ae;text-align:right}
-.throttle-track{position:relative;width:49px;height:100%;max-height:156px;min-height:92px;touch-action:none;cursor:ns-resize;outline:none}
+.throttle-interface{display:flex;align-items:center;justify-content:space-around;flex:1;min-height:0;gap:8px;padding:1px 0}
+.throttle-card{padding-bottom:5px}
+.throttle-labels{min-width:47px}
+.throttle-labels{height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:5px 0;font-size:9px;font-weight:800;color:#99b7ae;text-align:right}
+.throttle-track{position:relative;width:49px;height:100%;min-height:96px;touch-action:none;cursor:ns-resize;outline:none;flex-shrink:0}
 .track-groove{position:absolute;left:19px;top:6px;bottom:6px;width:11px;border-radius:10px;background:#081c21;box-shadow:inset 0 0 0 2px #456369}
-.track-neutral{position:absolute;left:9px;right:9px;top:50%;height:2px;background:#dfd8ae}
-.throttle-thumb{position:absolute;top:50%;left:1px;width:47px;height:24px;border-radius:7px;transform:translateY(-50%);background:linear-gradient(#f1c57d,#d98a4c);border:2px solid #ffe0a5;box-shadow:0 3px 10px #071c2099;display:grid;place-items:center}
+.track-notches{position:absolute;left:5px;right:5px;top:8%;bottom:8%;display:flex;flex-direction:column;justify-content:space-between;align-items:center;pointer-events:none}
+.track-notches span{width:34px;height:2px;background:#71978b;opacity:.68}
+.track-notches span:nth-child(6){height:3px;background:#ffe1a2;opacity:1}
+.track-neutral{position:absolute;left:5px;right:5px;top:50%;height:1px;background:#dfd8ae}
+.throttle-thumb{position:absolute;top:50%;left:1px;width:47px;height:20px;border-radius:7px;transform:translateY(-50%);background:linear-gradient(#f1c57d,#d98a4c);border:2px solid #ffe0a5;box-shadow:0 3px 10px #071c2099;display:grid;place-items:center}
 .throttle-thumb span{width:19px;height:4px;border-top:2px solid #b7763f;border-bottom:1px solid #b7763f}.control-readout{font-family:'Space Grotesk';font-size:11px;letter-spacing:1px;min-width:50px;text-align:center;color:#f1cc92}
 .tiller-interface{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:1px;min-height:0}
 .tiller-pad{position:relative;width:min(100%,185px);height:100%;max-height:158px;min-height:106px;touch-action:none;outline:none;cursor:ew-resize}
@@ -42,3 +47,8 @@
 .results{display:grid;gap:8px;margin:16px 0}.results>div{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#b5cfc3}.results strong{font-family:'Space Grotesk';font-size:16px;color:white}.results-total{border-top:1px solid #587b74;padding-top:12px}.results-total strong{color:#f1bb72!important}
 @media(max-height:650px){.control-deck{min-height:185px;padding-top:7px;gap:5px}.card-title{font-size:10px}.control-card{padding:5px 9px}.deck-footer{display:none}.course-message{top:80px}.modal{padding:14px 18px}.modal h1{font-size:44px;margin:10px 0}}
 @media(min-width:621px){body{background:radial-gradient(circle at center,#294e4f,#07161d)}.game-shell{box-shadow:0 0 80px #061619;border-left:1px solid #345d59;border-right:1px solid #345d59}}
+
+/* Give the left-hand lever the maximum available vertical travel. */
+.throttle-interface .control-readout{font-size:10px;min-width:54px}
+.throttle-track:focus-visible,.tiller-pad:focus-visible{outline:2px solid #f1bb72;outline-offset:2px;border-radius:6px}
+@media(max-height:650px){.throttle-labels{font-size:8px}.throttle-interface{gap:4px}.throttle-interface .control-readout{min-width:43px;font-size:9px}}
