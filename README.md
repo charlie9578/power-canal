@@ -154,3 +154,11 @@ Automated physics tests compare a slower helm using short ahead-thrust bursts wi
 [Play Bridge & Bend](https://charlie9578.github.io/power-canal/?course=technical&v=20261122-15).
 
 **Replay compatibility:** The right-angle rebuild is a new time-trial layout, so Stage 03 uses a fresh best-time/ghost slot. Previous Winding Hole records remain untouched in browser storage but are not compared or replayed on the new Bridge & Bend geometry. All Stage 01 and Stage 02 bests and ghosts are preserved.
+
+### v0.5.2 — lock countdown recognition and solid lock walls
+
+A stopped narrowboat could fail to start the two-second finish countdown even at almost zero speed, especially on Stage 03. The cause was *geometry*, not an insufficiently low speed: the third stage used its 12–14 m approach channel for bank contact within the lock, while the finish condition checked the much narrower 4.65 m lock chamber. A boat could therefore remain partly through a lock wall without any physical collision to nudge it clear.
+
+All three stages now use **real sidewall collision geometry within the lock**, consistent with the same full-size hull clearance test used by the finish detector. A near-wall stopped vessel is gently pushed to a valid position instead of indefinitely being refused. The finish remains an anywhere-in-the-lock **two-second hold**, with a nominal **0.08 m/s / 0.18 mph** threshold. Display rounding to 0.18 mph now matches acceptance. Position detection has a 25 cm initial rendering tolerance and a 45 cm exit tolerance once the countdown has started, preventing minor drifting or turning fluctuations from restarting the timer. Brief marginal speed excursions *pause* progress rather than discarding it. The HUD displays a live seconds-remaining countdown and explains if the stern/bow/wall still extends outside.
+
+No boat hydrodynamics, routes, personal bests or ghost recordings were changed. The new tests reproduce a stopped boat near a wall on all three stages and verify the countdown can then begin.
