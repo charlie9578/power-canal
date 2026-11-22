@@ -24,9 +24,9 @@ export const BOAT=Object.freeze({
   yawAddedInertiaRatio:0.80,  // added moment of inertia / dry yaw inertia
   // Propeller open-water thrust: rho*n²*D⁴*K_T(J), all estimated values.
   propellerDiameter:0.52,    // metres
-  propellerMaxRps:7.2,       // full-ahead shaft rev/s (432 shaft rpm)
-  propellerKT0:0.25,         // bollard coefficient
-  propellerKTSlope:0.27,     // K_T(J) linearised approximation
+  propellerMaxRps:8.8,       // assumed full-ahead shaft rev/s (528 shaft rpm)
+  propellerKT0:0.29,         // estimated bollard thrust coefficient
+  propellerKTSlope:0.60,     // provisional K_T(J) slope, awaiting prop data
   propellerWakeFraction:0.15,
   thrustDeduction:0.05,
   reverseFraction:0.55,       // astern thrust efficiency estimate
