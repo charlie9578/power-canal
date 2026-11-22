@@ -17,5 +17,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Check browser module syntax
+        run: |
+          node --check src/main.js
+          node --check src/course.js
+          node --check src/hydrodynamics.js
       - name: Run unit tests
         run: npm test
