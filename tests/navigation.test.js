@@ -96,7 +96,7 @@ for(const courseId of ['classic','test']){
 }
 
 test('bridge openings are clear for a full hull aligned with the local route',()=>{
-  for(const route of ['classic','test']){
+  for(const route of ['classic','test','technical']){
     const previous=getActiveCourse().id;
     setActiveCourse(route);
     try{
