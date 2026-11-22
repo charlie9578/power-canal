@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBoat, BOAT } from '../src/physics.js';
-import { LOCK, setActiveCourse, getActiveCourse, insideLock, lockClearance } from '../src/course.js';
+import { LOCK, setActiveCourse, getActiveCourse, insideLock, lockClearance, checkBanks } from '../src/course.js';
 import { LOCK_STOP, updateLockStop, lockSpeedMph } from '../src/lock-stop.js';
 
 function inRoute(route,fn){
@@ -142,3 +142,28 @@ test('at speeds above the display threshold a countdown never starts',()=>inRout
   assert.equal(stop.hold,0);
   assert.equal(stop.speedShown,.20);
 }));
+
+test('lock walls physically guide a stationary boat into the finish zone on all stages',()=>{
+  for(const route of ['classic','test','technical']){
+    inRoute(route,()=>{
+      const b=atLock(LOCK.centreX+1.45,(LOCK.startY+LOCK.endY)/2,.08);
+      b.vx=0;b.vy=-.05;
+      // This is an awkward stop near the wall: without the physical lock
+      // collision, stage 03's wide approach permits it but the clock rejects
+      // the overhanging bow. The other two stages must behave consistently.
+      assert.equal(updateLockStop(b,0,0,BOAT.length,BOAT.beam).inside,false);
+      const wall=checkBanks(b,BOAT.length,BOAT.beam);
+      assert.ok(wall.depth>.25,route+' lock walls must be collidable');
+      assert.ok(wall.normalX<0,'right lock wall must push boat to left');
+      for(let i=0;i<60;i++){
+        const hit=checkBanks(b,BOAT.length,BOAT.beam);
+        if(hit.depth<=0)break;
+        b.x+=hit.normalX*Math.min(hit.depth*.25,.5);
+        b.y+=(hit.normalY??0)*Math.min(hit.depth*.25,.5);
+      }
+      const docking=updateLockStop(b,0,1/60,BOAT.length,BOAT.beam);
+      assert.equal(docking.inside,true,route+' should now recognise the stopped boat');
+      assert.ok(docking.hold>0,route+' countdown should start once wall contact resolves');
+    });
+  }
+});
