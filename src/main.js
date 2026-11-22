@@ -1,7 +1,7 @@
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-4';
-import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-4';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-4';
-import { WIDTH, START_Y, LOCK, centreAt, halfWidthAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-4';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-5';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-5';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-5';
+import { WIDTH, START_Y, LOCK, centreAt, halfWidthAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-5';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
@@ -109,19 +109,26 @@ function updateUI(){
   }else if(distance<95){ui.course.textContent='LOCK AHEAD · PREPARE TO STOP';ui.hint.textContent='SLOW EARLY';}
   else{ui.course.textContent='FOLLOW THE CANAL · WATCH YOUR STERN';ui.hint.textContent='STOP INSIDE THE LOCK';}
   ui.feedback.textContent=messageTime>0?message:paused?'PAUSED':'';
+  renderTiller();
 }
 function setThrottleNotch(notch){
   controls.throttle=throttleFromNotch(notch);
   renderControls();
 }
+function renderTiller(){
+  // Show actual mechanical tiller/rudder position, not the target input.
+  const actual=clamp(boat.rudder/BOAT.maxRudder,-1,1);
+  ui.tillerStick.style.transform='translateX(-50%) rotate('+actual*52+'deg)';
+  ui.tillerPad.setAttribute('aria-valuenow',String(Math.round(actual*100)));
+  ui.tillerPad.setAttribute('aria-valuetext',Math.abs(actual)<.04?'Centre':(actual<0?'Port ':'Starboard ')+Math.round(Math.abs(actual)*100)+' percent');
+  ui.tillerReadout.textContent=Math.abs(actual)<.04?'CENTRE':(actual<0?'PORT ':'STBD ')+Math.round(Math.abs(actual)*100)+'%';
+}
 function renderControls(){
-  const notch=clampNotch(controls.throttle*5),r=controls.tiller;
+  const notch=clampNotch(controls.throttle*5);
   ui.throttleThumb.style.top=positionForNotch(notch)+'%';
   ui.throttleTrack.setAttribute('aria-valuenow',String(notch));
   ui.throttleTrack.setAttribute('aria-valuetext',labelForNotch(notch));
-  ui.tillerStick.style.transform='translateX(-50%) rotate('+r*52+'deg)';
-  ui.tillerPad.setAttribute('aria-valuenow',String(Math.round(r*100)));
-  ui.tillerReadout.textContent=Math.abs(r)<.04?'CENTRE':(r<0?'PORT ':'STBD ')+Math.round(Math.abs(r)*100)+'%';
+  renderTiller();
 }
 function trackPointer(element,compute,setter){
   let pointer=null;
