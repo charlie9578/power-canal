@@ -39,3 +39,31 @@ test('bank collision accounts for bow and stern length',()=>{
   const boat=createBoat(centreAt(60),60,Math.PI/2);
   assert.ok(checkBanks(boat,BOAT.length,BOAT.beam).depth>0);
 });
+
+test('wake travel heading follows actual velocity',async()=>{
+  const { travelAngle, createWakeMark, pruneWakeMarks } = await import('../src/water.js');
+  const movingSideways=createBoat(0,0,0);
+  movingSideways.vx=1.2;
+  movingSideways.forwardSpeed=0;
+  assert.ok(Math.abs(travelAngle(movingSideways.vx, movingSideways.vy)-Math.PI/2)<1e-8);
+  const mark=createWakeMark(movingSideways,3);
+  assert.ok(mark&&Math.abs(mark.angle-Math.PI/2)<1e-8);
+  const marks=[mark];
+  pruneWakeMarks(marks,20);
+  assert.equal(marks.length,0);
+});
+
+test('stepped throttle has eleven positions, snaps and labels correctly',async()=>{
+  const { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } = await import('../src/throttle.js');
+  assert.equal(clampNotch(100),5);
+  assert.equal(clampNotch(-100),-5);
+  assert.equal(throttleFromNotch(3),0.6);
+  assert.equal(throttleFromNotch(-5),-1);
+  assert.equal(notchFromTrackPosition(8,0,100),5);
+  assert.equal(notchFromTrackPosition(50,0,100),0);
+  assert.equal(notchFromTrackPosition(92,0,100),-5);
+  assert.equal(positionForNotch(5),8);
+  assert.equal(positionForNotch(-5),92);
+  assert.equal(labelForNotch(-3),'REV 3');
+  assert.equal(labelForNotch(0),'NEUTRAL');
+});
