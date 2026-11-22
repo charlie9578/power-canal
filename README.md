@@ -66,3 +66,7 @@ Run tests with `npm test` (requires modern Node.js; only the tests need Node).
 ### Water visual tuning
 
 The stern wake is intentionally subtle: a shorter-lived, sparser and less opaque trailing V, separate from the bow wave and propeller wash. Wake strength is purely visual; boat physics and scoring are unchanged.
+
+## Deployment verification
+
+GitHub Pages hosts the game at https://charlie9578.github.io/power-canal/ . The HUD shows the build version (currently **v0.1.2**). Static CSS and JS links include a release-specific query string so a new deployment loads fresh game assets. If the old page is still cached, open https://charlie9578.github.io/power-canal/?v=20261122-2 to force a fresh document URL.
