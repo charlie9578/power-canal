@@ -82,25 +82,27 @@ test('prop wash bends with actual rudder angle, with less reverse effect',async(
     'plume curves farther downstream');
 });
 
-test('propeller wash tracks mechanical rudder immediately, while the boat retains yaw inertia',async()=>{
+test('propeller wash tracks physical rudder travel, while the boat retains yaw inertia',async()=>{
   const { propWashSideOffset }=await import('../src/water.js');
   const b=createBoat(0,0);
   stepBoat(b,{throttle:1,tiller:1},1/60);
-  assert.equal(b.rudder,BOAT.maxRudder);
+  assert.ok(b.rudder>0 && b.rudder<BOAT.maxRudder,'human cannot move tiller full-lock in one frame');
   const rightWash=propWashSideOffset(b.rudder,b.throttle,4);
   assert.ok(rightWash<0);
   const priorHeading=b.heading;
   stepBoat(b,{throttle:1,tiller:-1},1/60);
-  assert.equal(b.rudder,-BOAT.maxRudder);
-  assert.ok(propWashSideOffset(b.rudder,b.throttle,4)>0);
+  assert.ok(b.rudder>0,'rudder takes finite time to reverse direction');
+  assert.ok(propWashSideOffset(b.rudder,b.throttle,4)<0,'wash follows physical rudder until it crosses centre');
   assert.ok(Math.abs(b.heading-priorHeading)<.01,'boat heading retains inertia');
 });
 
-test('tiller moves the rudder immediately while yaw changes only through inertia',()=>{
-  const b=createBoat(0,0);
-  stepBoat(b,{throttle:1,tiller:1},1/60);
-  assert.equal(b.rudder,BOAT.maxRudder);
+test('tiller is rate-limited by human movement while heading changes slowly',()=>{
+  const b=createBoat(0,0),dt=1/60;
+  stepBoat(b,{throttle:1,tiller:1},dt);
+  assert.ok(Math.abs(b.rudder-BOAT.maxRudderRate*dt)<1e-10);
   assert.ok(Math.abs(b.heading)<0.001,'hull cannot instantly rotate');
+  for(let i=0;i<30;i++)stepBoat(b,{throttle:1,tiller:1},dt);
+  assert.equal(b.rudder,BOAT.maxRudder);
 });
 
 test('zero engine power gives no prop-wash steering while stationary',async()=>{
@@ -148,4 +150,26 @@ test('canal section feeds width and bank forces to the simulator',async()=>{
   assert.ok(water.depth>BOAT.draft);
   assert.ok(water.width>BOAT.beam);
   assert.ok(Number.isFinite(bankForces(1.5,BOAT,water).N));
+});
+
+test('neutral tiller retains residual turning and requires anticipation',()=>{
+  const b=createBoat(0,0),dt=1/60;
+  for(let i=0;i<900;i++)stepBoat(b,{throttle:1,tiller:0},dt);
+  for(let i=0;i<90;i++)stepBoat(b,{throttle:1,tiller:.7},dt);
+  const heading=b.heading;
+  const yaw=b.yawRate;
+  assert.ok(yaw<0,'starboard tiller builds port yaw');
+  for(let i=0;i<120;i++)stepBoat(b,{throttle:1,tiller:0},dt);
+  assert.ok(b.heading<heading-.03,'hull continues turning after centring');
+  assert.ok(b.yawRate<0,'residual yaw remains after two seconds');
+});
+
+test('mechanical rudder reverses direction only as fast as a person can move it',()=>{
+  const b=createBoat(),dt=1/60;
+  for(let i=0;i<30;i++)stepBoat(b,{throttle:1,tiller:1},dt);
+  assert.equal(b.rudder,BOAT.maxRudder);
+  stepBoat(b,{throttle:1,tiller:-1},dt);
+  assert.ok(b.rudder>0);
+  for(let i=0;i<60;i++)stepBoat(b,{throttle:1,tiller:-1},dt);
+  assert.equal(b.rudder,-BOAT.maxRudder);
 });
