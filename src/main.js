@@ -149,7 +149,7 @@ function simulate(dt){
     // Stage 03's stone elbow has hard masonry faces: a fast strike that
     // overlaps by several centimetres counts, whereas minor slow-speed
     // sampling/contact is still tolerated. The original levels are unchanged.
-    const impactThreshold=getActiveCourse().id==='technical'?.075:.35;
+    const impactThreshold=getActiveCourse().id==='technical'?.035:.35;
     if(bank.depth>impactThreshold && collisionCooldown<=0 &&
        Math.hypot(prev.vx,prev.vy)>(getActiveCourse().id==='technical'?.65:.45)){
       addPenalty(bank.depth>1.05?5:2,
@@ -426,6 +426,10 @@ function drawTurningFeatures(low,high){
 }
 function drawTechnicalCanal(){
   ctx.fillStyle='#b9cca3';ctx.fillRect(0,0,width,height);
+  // Fields/hedges stay behind the real two-dimensional canal water.
+  const low=camera.y-height/scale,high=camera.y+height/scale;
+  drawFields(ctx,{low,high,project,centreAt,halfWidthAt,
+    courseId:'technical'});
   const path=technicalPath();
   // Thick variable-width strokes make a genuine right-angle canal.
   // Drawing and hull collision are both based on these identical path
