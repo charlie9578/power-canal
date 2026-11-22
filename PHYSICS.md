@@ -1,4 +1,4 @@
-# Power Canal physics model (v0.5.0)
+# Power Canal physics model (v0.5.1)
 
 ## Scope and confidence
 
@@ -223,3 +223,13 @@ Stage 03 exercises the existing coupled surge/sway/yaw model without altering an
 The stone wharf at the basin exit is a **real collision obstacle**, not an invisible speed gate. Hull strip samples intersecting the rectangular quay experience lateral correction, speed/yaw damping and a penalty on significant impacts. The wharf is rendered using exactly the same metre coordinates as the collision geometry.
 
 The helmsman in `tests/technical-navigation.test.js` begins braking before the corner and applies intermittent forward thrust with the tiller deflected, using propeller wash for heading control while keeping speed down. Its successful lock finish, absence of collisions and a separate full-ahead late-turn impact demonstrate a useful difference in playable strategy. This is an engineering/gameplay proof of a *possible* route and does not prove there is no skilled flat-out route. Rudder force, engine thrust and bank hydrodynamics are unchanged from v0.4.3.
+
+## v0.5.1 — true 90° right turn after bridge (Stage 03)
+
+Stage 03 now has a **two-dimensional** canal path with a northbound approach, a right-hand **quarter-circle of radius 9 m**, a genuine eastbound straight and a subsequent gentler left bend that returns to a northbound lock approach. The stone bridge centre is at (x=0, y=-93); the right-hand curve starts at (x=0, y=-115), exactly **22 m downstream**, or **1.51 × the 14.6 m test boat length**. The turn heading changes from 0° to 90°, not merely to a steep diagonal approximating a right angle.
+
+The original two courses still have width and centreline specified as functions of world y. This no longer works for Stage 03's horizontal leg, so `src/technical-route.js` samples its physical centreline in world x/y and provides nearest-segment projection with curvilinear distance `s`, local depth/width, tangent and bank clearance. The *same* path and width data draw the water and detect collisions. The hull's 15 distributed strip sample points are checked against the local half-width. Collision correction uses both x and y components of the inward normal, making the eastbound canal's north/south banks solid. The speed-dependent hydrodynamic canal inputs and bank force estimates are based on the boat's nearest 2D canal section, not a false `centreAt(y)` lookup.
+
+A real stone bridge of **4.2 m opening** constrains early sideways steering. Through the 90° curve the width is approximately **10.5 m**. A small stone-bank impact of more than 3.5 cm at substantial speed can be penalised in Stage 03; it is not a phantom speed checkpoint. The unchanged 3-DOF boat model retains its rudder propeller wash, sway/yaw inertia and throttle-reverse braking. Representative test-only controllers demonstrate a collision-free slower passage using ahead thrust pulses, and a full-ahead late-turn trajectory that scrapes a bank. These tests validate plausible navigability and a *riskier ordinary fast line*, not a mathematical proof that no expert full-speed line exists.
+
+Stage 01 and Stage 02 paths, waterway geometries and docking rules remain unchanged. Stage 03 is a replacement for the broad winding-hole prototype from v0.5.0.
