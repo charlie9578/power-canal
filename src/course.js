@@ -60,7 +60,12 @@ export const COURSES=Object.freeze([
    lock:{startY:-390,endY:-421,centreX:35,width:4.65},
    bridges:[{y:-40,opening:6}],
    aqueduct:null,zones:TECH_ZONES,
-   turningZone:{startY:-85,endY:-205,centreY:-130,centreX:17}}
+   turningZone:{startY:-85,endY:-205,centreY:-130,centreX:17},
+   // Stone loading quay projects from the outside/right bank into the hole.
+   // This prevents taking the shortcut at cruising speed. The inner/west
+   // approach has a full-hull-width route around it at slow speed.
+   obstacles:[{id:'wharf',name:'STONE WHARF',left:37.5,right:54,
+     top:-155,bottom:-183}]}
 ]);
 
 let activeCourse=COURSES[0];
@@ -155,6 +160,21 @@ export function checkBanks(b,length,beam){
 }
 // Accept a stopped boat anywhere in the chamber, with no centre target.
 // Full-sized hull corners are tested with 5 cm tolerance for the rounded bow.
+export function checkObstacles(b,length,beam){
+  let depth=0,normalX=0,name='';
+  for(const obstacle of getActiveCourse().obstacles??[]){
+    // The stone quay connects to the right bank. Only its west-facing
+    // navigation edge is accessible; test the same distributed hull points
+    // as bank collisions so the bow and stern cannot clip the quay.
+    for(const p of hullSamples(b,length,beam)){
+      if(p.x<=obstacle.left||p.x>=obstacle.right||
+        p.y>=obstacle.top||p.y<=obstacle.bottom)continue;
+      const overlap=p.x-obstacle.left;
+      if(overlap>depth){depth=overlap;normalX=-1;name=obstacle.name;}
+    }
+  }
+  return {depth,normalX,name};
+}
 export function insideLock(b,length,beam){
   const tolerance=.05;
   return [-.5,.5].every(fore=>
