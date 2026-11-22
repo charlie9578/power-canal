@@ -187,3 +187,13 @@ The course uses smoothed Hermite spline knots for its S-bends, including a nearl
 For a controlled comparison: hold the same throttle on the wide/deep section and on the shallow narrows, observe the speed and bow-wave intensity, then compare how much countersteering the narrow bends require. Run the original stage as the control.
 
 Future validation should account for canal cross-section (trapezoidal versus rectangular), bank roughness, sediment, asymmetric return flow, current, squat and air exposure of an aqueduct. Those effects are **not fully modelled** by the current simplified Schijf-proximity penalty.
+
+## v0.3.3 — course navigability and collision response
+
+The shallow narrows of Stage 02 were initially too demanding: steeply alternating bends gave little practical reaction distance, and a 4.8-metre bridge opening was placed mid-bend. With the bridge collision geometry evaluated at its world-y cross-section, this could strike a correctly aligned 14.6-metre boat. A smaller related issue existed at the second test bridge. The test bridges are now on mostly straight, broad reaches, with **6.8-metre openings**.
+
+Stage 02's shallow section has been widened from 7.1 to **8.6 metres**, retaining its **0.98-metre depth**, while nearby centreline changes were smoothed. This maintains a measurable restricted-water resistance penalty compared with the deep basin. Most other technical bends are more gradual, but still require anticipation.
+
+A **0.035 m collision tolerance** now keeps very small hull/bank overlap from applying strong velocity damping every frame. This is a game-specific response to collision sampling, not a hydrodynamic coefficient. Deeper intersections progressively damp vessel velocity and yaw, and impacts still accumulate penalties.
+
+A new deterministic `tests/navigation.test.js` controller uses look-ahead course tracking, the *actual* 3-DOF model and canal width/depth, and the gameplay collision and lock logic to drive each stage end-to-end. For both the classic and test route, it verifies no bank/bridge strikes and a stationary full-hull lock finish. The controller does not ship in the game. This is a regression guard for reachability, not an assumption about how quickly a human can complete the stage.
