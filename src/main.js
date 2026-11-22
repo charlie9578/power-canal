@@ -1,7 +1,7 @@
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-3';
-import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-3';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-3';
-import { WIDTH, START_Y, LOCK, centreAt, halfWidthAt, checkBanks, insideLock, pointOnHull } from './course.js?v=20261122-3';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-4';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-4';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-4';
+import { WIDTH, START_Y, LOCK, centreAt, halfWidthAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-4';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
@@ -50,7 +50,7 @@ function simulate(dt){
   collisionCooldown=Math.max(0,collisionCooldown-dt);
   messageTime=Math.max(0,messageTime-dt);
   const prev={...boat};
-  stepBoat(boat,controls,dt);
+  stepBoat(boat,controls,dt,BOAT,canalEnvironmentAt(boat,BOAT.beam,BOAT.length));
   // Record disturbances in world coordinates so they remain in place as the
   // boat changes heading. Waves gradually disappear after the boat has passed.
   if(clock-lastWakeAt>0.48){
