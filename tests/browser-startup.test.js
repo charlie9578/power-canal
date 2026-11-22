@@ -95,7 +95,7 @@ function boot(course){
   frames.shift()(16);
   assert.ok(calls.paint>(course==='technical'?55:100),'first frame should paint a canal and boat');
   assert.match(node('waterInfo').textContent,/DEPTH.*WIDTH/);
-  assert.equal(node('stageName').textContent,course==='technical'?'The Winding Hole':course==='test'?'The Waterway Lab':'Bridge to Lock');
+  assert.equal(node('stageName').textContent,course==='technical'?'The Bridge & Bend':course==='test'?'The Waterway Lab':'Bridge to Lock');
   assert.equal(node('hintDisplay').textContent,
     course==='technical'?'WINDING HOLE AHEAD':course==='test'?'WATCH DEPTH & WIDTH':'WATCH YOUR STERN',
     'cruising hints should use unobstructed deck footer');
