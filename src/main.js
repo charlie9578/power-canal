@@ -1,8 +1,8 @@
-import { resistanceComponents } from './hydrodynamics.js?v=20261122-7';
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-7';
-import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-7';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-7';
-import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-7';
+import { resistanceComponents } from './hydrodynamics.js?v=20261122-8';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-8';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-8';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-8';
+import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-8';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
@@ -10,7 +10,8 @@ const ui={
   start:$('startModal'), finish:$('finishModal'), time:$('timeDisplay'), penalty:$('penaltyDisplay'),
   speed:$('speedDisplay'), state:$('stateDisplay'), feedback:$('feedback'), course:$('courseMessage'),
   throttleTrack:$('throttleTrack'), throttleThumb:$('throttleThumb'),
-  tillerPad:$('tillerPad'), tillerStick:$('tillerStick'), tillerReadout:$('tillerReadout'), hint:$('hintDisplay')
+  tillerPad:$('tillerPad'), tillerStick:$('tillerStick'), tillerReadout:$('tillerReadout'), hint:$('hintDisplay'),
+  waterLabel:$('waterLabel'), waterInfo:$('waterInfo')
 };
 let boat, controls, elapsed, penalties, running=false, finished=false, paused=false;
 let messageTime=0, message='', lockHold=0, collisionCooldown=0, contactTotal=0, last=0, accumulator=0;
@@ -30,7 +31,7 @@ function readBest(){
 let best=readBest();
 function renderCoursePicker(){
   const course=getActiveCourse();
-  $('stageNumber').textContent='POWER CANAL v0.3.1 / STAGE '+course.number;
+  $('stageNumber').textContent='POWER CANAL v0.3.2 / STAGE '+course.number;
   $('stageName').textContent=course.name;
   $('startDescription').textContent=course.description;
   for(const button of document.querySelectorAll('[data-course]')){
