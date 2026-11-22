@@ -18,7 +18,7 @@ Open [http://localhost:8000](http://localhost:8000) on your computer. To play fr
 
 **Touch controls**
 
-- **Left throttle:** drag up for five notched ahead settings (+1 to +5), drag down for five notched astern settings (−1 to −5), with neutral (0) in the middle. Each notch is 20% power; the lever stays in the selected position. The left-hand lever now uses more of the control deck height.
+- **Left throttle:** drag up for five notched ahead settings (+1 to +5), drag down for five notched astern settings (−1 to −5), with neutral (0) in the middle. Only MAX, NEUTRAL and MIN are marked on the control, but dragging still snaps to eleven settings in 20% increments. The lever stays in the selected position. The left-hand lever now uses more of the control deck height.
 - **Right tiller:** drag towards port or starboard; it stays where you leave it. **Real tiller behaviour:** pushing the handle towards starboard turns the *bow to port*. The boat continues rotating for a while after the handle returns to centre.
 - Pause (Ⅱ) and restart (↻) are in the control deck.
 - Desktop fallback: **↑ / ↓** adjust throttle, **← / →** adjust tiller, **Space** neutral, **C** centre tiller.
@@ -62,3 +62,7 @@ Run tests with `npm test` (requires modern Node.js; only the tests need Node).
 ## Design goal
 
 **Realistic causes, enjoyable consequences.** The player should learn to anticipate steering and braking, not fight arbitrary input lag.
+
+### Water visual tuning
+
+The stern wake is intentionally subtle: a shorter-lived, sparser and less opaque trailing V, separate from the bow wave and propeller wash. Wake strength is purely visual; boat physics and scoring are unchanged.
