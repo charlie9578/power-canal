@@ -42,3 +42,30 @@ export function insideLock(b,length,beam){
     Math.abs(p.x-LOCK.centreX)<LOCK.width/2-margin
   );
 }
+
+// Local channel conditions fed to the planar force model. The water depth
+// and bank force coefficients are intentionally approximate: canal cross
+// sections vary in reality and need a survey for quantitative calibration.
+export function canalEnvironmentAt(boat,beam=2.08,length=14.6){
+  const onLock=boat.y<LOCK.startY && boat.y>LOCK.endY;
+  const centre=centreAt(boat.y);
+  const half=onLock?LOCK.width/2:halfWidthAt(boat.y);
+  const proximity=Math.min(1,Math.abs(boat.x-centre)/Math.max(half,1));
+  const depth=onLock?1.8:1.5-0.33*Math.pow(proximity,4);
+  const bankSection=fore=>{
+    const p=pointOnHull(boat,0,fore*length*.35);
+    const delta=p.x-centreAt(p.y);
+    // Right world bank is starboard at heading 0, with the projection
+    // corrected as the hull turns away from the channel centreline.
+    return {
+      clearance:halfWidthAt(p.y)-beam*.5-Math.abs(delta),
+      side:(delta>=0?1:-1)*Math.cos(boat.heading)
+    };
+  };
+  return {
+    depth,
+    width:2*half,
+    bowBank:bankSection(1),
+    sternBank:bankSection(-1)
+  };
+}
