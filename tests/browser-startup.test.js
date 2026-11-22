@@ -18,6 +18,9 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const source=readFileSync(new URL('../src/main.js',import.meta.url),'utf8')
   .replace(/^import\s+[^\n]*\n/gm,'');
 const declaredIds=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));
+// The removed floating caption must not be reintroduced over HUD content.
+assert.equal(declaredIds.has('courseMessage'),false,
+  'normal route prompts belong in the control deck, not over the canal');
 const modules={
   BOAT,clamp,createBoat,stepBoat,resistanceComponents,
   appendGhostFrame,makeGhost,readGhost,saveGhost,shouldReplaceGhost,sampleGhost,
@@ -91,6 +94,9 @@ function boot(course){
   assert.ok(calls.paint>100,'first frame should paint a canal and boat');
   assert.match(node('waterInfo').textContent,/DEPTH.*WIDTH/);
   assert.equal(node('stageName').textContent,course==='test'?'The Waterway Lab':'Bridge to Lock');
+  assert.equal(node('hintDisplay').textContent,
+    course==='test'?'WATCH DEPTH & WIDTH':'WATCH YOUR STERN',
+    'cruising hints should use unobstructed deck footer');
   assert.equal(node('lockIndicator').classList.contains('is-hidden'),true,
     'dock guidance only appears at the lock');
   const previous=calls.paint;
@@ -115,6 +121,15 @@ function boot(course){
     tick+=16;
     assert.ok(calls.paint>beforeSection+40,'section '+y+' must render');
   }
+  // The approaching-lock prompt is drawn only in the dedicated panel,
+  // not across the middle of the playfield or over water-depth information.
+  vm.runInContext(`
+    boat.y=LOCK.startY+84;boat.x=centreAt(boat.y);
+    lockState=updateLockStop(boat,0,0,BOAT.length,BOAT.beam);
+    updateUI();
+  `,sandbox);
+  assert.equal(node('lockIndicator').classList.contains('is-hidden'),false);
+  assert.match(node('lockIndicatorText').textContent,/LOCK AHEAD/);
   // Check actual UI feedback for the two previously invisible blockers:
   // whether the stern is still outside and whether lateral drift is present.
   vm.runInContext(`
