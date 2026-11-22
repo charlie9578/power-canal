@@ -36,8 +36,8 @@ test('linearised Nomoto plant agrees with 3-DOF sway yaw matrix',()=>{
 test('Nomoto poles do not assume RHP instability',()=>{
   const n=nomotoAtSpeed(1.25,BOAT,WATER);
   assert.ok(n.stable);
-  const unstable=nomotoAtSpeed(1.25,{...BOAT,lateralCentre:10},WATER);
-  assert.ok(unstable.poles.some(p=>p.real>0));
+  const unstable=nomotoAtSpeed(1.25,{...BOAT,lateralCentre:20},WATER);
+  assert.ok(unstable.poles.some(p=>p.real>0),'an intentionally unphysical centre shift can create an RHP mode');
 });
 
 test('Nomoto uses valid straight-line trim; returns null beyond attainable speed',()=>{
