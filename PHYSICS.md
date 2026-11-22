@@ -1,4 +1,4 @@
-# Power Canal physics model (v0.5.1)
+# Power Canal physics model (v0.5.2)
 
 ## Scope and confidence
 
@@ -233,3 +233,9 @@ The original two courses still have width and centreline specified as functions 
 A real stone bridge of **4.2 m opening** constrains early sideways steering. Through the 90° curve the width is approximately **10.5 m**. A small stone-bank impact of more than 3.5 cm at substantial speed can be penalised in Stage 03; it is not a phantom speed checkpoint. The unchanged 3-DOF boat model retains its rudder propeller wash, sway/yaw inertia and throttle-reverse braking. Representative test-only controllers demonstrate a collision-free slower passage using ahead thrust pulses, and a full-ahead late-turn trajectory that scrapes a bank. These tests validate plausible navigability and a *riskier ordinary fast line*, not a mathematical proof that no expert full-speed line exists.
 
 Stage 01 and Stage 02 paths, waterway geometries and docking rules remain unchanged. Stage 03 is a replacement for the broad winding-hole prototype from v0.5.0.
+
+## v0.5.2 — fix stopped-but-unregistered lock detection
+
+The same 14.6 × 2.08 m full-hull rectangular projection now supplies lock-side clearance diagnostics and gameplay finish recognition. All courses physically enforce the 4.65 m lock chamber sidewalls via `lockWallContact()`; previously Stage 03 retained the wider two-dimensional approach width within the lock, so a collision-free stopped boat could have a hull corner beyond the finish boundary.
+
+A two-second stop still uses the original nominal **0.08 m/s ≈ 0.18 mph** threshold. To prevent a visible 0.18 mph reading from being secretly rejected, the displayed hundredth of mph is used consistently as an alternate threshold. A 0.25 m initial geometric tolerance and 0.45 m hold hysteresis handle small overlap in the visual hull/walls and two-second hull creep. Small spikes above the speed criterion but below 0.11 m/s pause accumulated time; normal movement or significant departure resets. No new steering forces or artificial dock braking were added.
