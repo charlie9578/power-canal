@@ -3,7 +3,7 @@
 import { BOAT, clamp } from './physics.js';
 import { pointOnHull } from './course.js';
 
-export const WAKE_LIFETIME = 11;
+export const WAKE_LIFETIME = 6;
 
 export function travelAngle(vx, vy, fallback=0) {
   // A heading of zero points up (negative world y).
