@@ -1,17 +1,17 @@
-import { resistanceComponents } from './hydrodynamics.js?v=20261122-11';
-import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from './ghost.js?v=20261122-11';
-import { drawFields, drawTowpath, drawStoneBridge } from './scenery.js?v=20261122-11';
-import { updateLockStop, LOCK_STOP } from './lock-stop.js?v=20261122-11';
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-11';
-import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-11';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-11';
-import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-11';
+import { resistanceComponents } from './hydrodynamics.js?v=20261122-12';
+import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from './ghost.js?v=20261122-12';
+import { drawFields, drawTowpath, drawStoneBridge } from './scenery.js?v=20261122-12';
+import { updateLockStop, LOCK_STOP } from './lock-stop.js?v=20261122-12';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-12';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-12';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-12';
+import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-12';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
 const ui={
   start:$('startModal'), finish:$('finishModal'), time:$('timeDisplay'), penalty:$('penaltyDisplay'),
-  speed:$('speedDisplay'), state:$('stateDisplay'), feedback:$('feedback'), course:$('courseMessage'),
+  speed:$('speedDisplay'), state:$('stateDisplay'), feedback:$('feedback'),
   throttleTrack:$('throttleTrack'), throttleThumb:$('throttleThumb'),
   tillerPad:$('tillerPad'), tillerStick:$('tillerStick'), tillerReadout:$('tillerReadout'), hint:$('hintDisplay'),
   waterLabel:$('waterLabel'), waterInfo:$('waterInfo'), ghostChip:$('ghostChip'),
@@ -38,7 +38,7 @@ function readBest(){return readBestFor(selectedCourse);}
 let best=readBest();
 function renderCoursePicker(){
   const course=getActiveCourse();
-  $('stageNumber').textContent='POWER CANAL v0.4.1 / STAGE '+course.number;
+  $('stageNumber').textContent='POWER CANAL v0.4.2 / STAGE '+course.number;
   $('stageName').textContent=course.name;
   $('startDescription').textContent=course.description;
   $('homeProgress').textContent=['classic','test'].filter(id=>readBestFor(id)!==null).length+' / 2';
@@ -189,7 +189,9 @@ function updateUI(){
   ui.waterLabel.textContent=section.name;
   ui.waterInfo.textContent='DEPTH '+section.depth.toFixed(2)+'m · WIDTH '+section.width.toFixed(1)+'m';
   const docking=lockState??updateLockStop(boat,0,0,BOAT.length,BOAT.beam);
-  const nearLock=boat.y<LOCK.startY+64;
+  // Docking guidance has one dedicated location and starts early enough
+  // to warn the player before braking, without a floating text banner.
+  const nearLock=boat.y<LOCK.startY+95;
   ui.lockIndicator.classList.toggle('is-hidden',!nearLock||finished);
   $('playfield').classList.toggle('is-lock-near',nearLock&&!finished);
   const percent=Math.min(100,Math.round(docking.progress*100));
@@ -215,20 +217,14 @@ function updateUI(){
     }
   }
   ui.lockIndicatorText.textContent=label;
-  const distance=boat.y-LOCK.startY;
   if(nearLock){
-    ui.course.textContent=label;
     ui.hint.textContent=docking.inside
       ? (docking.stable?'HOLD POSITION':'STEADY THE BOAT')
-      : 'ENTIRE BOAT MUST FIT';
-  }else if(distance<95){
-    ui.course.textContent='LOCK AHEAD · PREPARE TO STOP';
-    ui.hint.textContent='SLOW EARLY';
+      : 'SLOW FOR LOCK';
   }else{
-    ui.course.textContent=selectedCourse==='test'
-      ?'COMPARE WATER CONDITIONS · WATCH YOUR STERN'
-      :'FOLLOW THE CANAL · WATCH YOUR STERN';
-    ui.hint.textContent=selectedCourse==='test'?'WATCH DEPTH & WIDTH':'STOP INSIDE THE LOCK';
+    // Routine navigation guidance belongs in the control-deck footer,
+    // not in a banner over the water and hydraulic information.
+    ui.hint.textContent=selectedCourse==='test'?'WATCH DEPTH & WIDTH':'WATCH YOUR STERN';
   }
   ui.feedback.textContent=messageTime>0?message:paused?'PAUSED':'';
   const visible=Boolean(currentGhost&&ghostEnabled&&running&&sampleGhost(currentGhost,elapsed));
