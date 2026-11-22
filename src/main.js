@@ -146,8 +146,14 @@ function simulate(dt){
       boat.yawRate*=Math.exp(-dt*.8*severity);
       contactTotal+=dt;
     }
-    if(bank.depth>.35&&collisionCooldown<=0 && Math.hypot(prev.vx,prev.vy)>.45){
-      addPenalty(bank.depth>1.05?5:2,bank.depth>1.05?'Bank impact':'Bank scrape');
+    // Stage 03's stone elbow has hard masonry faces: a fast strike that
+    // overlaps by several centimetres counts, whereas minor slow-speed
+    // sampling/contact is still tolerated. The original levels are unchanged.
+    const impactThreshold=getActiveCourse().id==='technical'?.075:.35;
+    if(bank.depth>impactThreshold && collisionCooldown<=0 &&
+       Math.hypot(prev.vx,prev.vy)>(getActiveCourse().id==='technical'?.65:.45)){
+      addPenalty(bank.depth>1.05?5:2,
+        bank.depth>1.05?'Bank impact':getActiveCourse().id==='technical'?'Stone wall scrape':'Bank scrape');
     }
   }else{contactTotal=0;}
   // The visible stone wharf projects into the winding hole: colliding
