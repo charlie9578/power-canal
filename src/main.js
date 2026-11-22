@@ -2,7 +2,7 @@ import { resistanceComponents } from './hydrodynamics.js?v=20261122-7';
 import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-7';
 import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-7';
 import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-7';
-import { START_Y, LOCK, COURSES, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-7';
+import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-7';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
