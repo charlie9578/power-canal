@@ -7,7 +7,7 @@ export const LOCK={startY:-390,endY:-421,centreX:0,width:4.65};
 
 const TEST_ZONES=Object.freeze([
   {top:80,bottom:-50,width:16.5,depth:2.25,bank:'natural',name:'OPEN MEADOW · DEEP & WIDE'},
-  {top:-50,bottom:-160,width:7.1,depth:.98,bank:'natural',name:'SHALLOW NARROWS'},
+  {top:-50,bottom:-160,width:8.6,depth:.98,bank:'natural',name:'SHALLOW NARROWS'},
   {top:-160,bottom:-244,width:18.5,depth:2.65,bank:'natural',name:'DEEP BASIN'},
   {top:-244,bottom:-332,width:7.4,depth:1.35,bank:'aqueduct',name:'STONE AQUEDUCT'},
   {top:-332,bottom:-443,width:10.5,depth:1.05,bank:'natural',name:'WINDING EARTH CUT'},
@@ -15,14 +15,15 @@ const TEST_ZONES=Object.freeze([
   {top:-555,bottom:-610,width:14.8,depth:2.2,bank:'stone',name:'DEEP LOCK APPROACH'}
 ]);
 
-// Smooth centreline knots make several linked S bends. An extended flat
-// pair of knots keeps the aqueduct trough effectively straight.
+// Smoothed, generously spaced S-bends remain challenging but navigable by
+// the 14.6 m test boat at moderate speed; bridges are on open straight reaches.
+// Flat knots keep the aqueduct trough straight.
 const TEST_PATH=Object.freeze([
-  {y:80,x:0},{y:60,x:0},{y:20,x:0},{y:-35,x:-9},
-  {y:-85,x:13},{y:-137,x:-11},{y:-190,x:12},
+  {y:80,x:0},{y:60,x:0},{y:20,x:0},{y:-35,x:-6},
+  {y:-85,x:7},{y:-137,x:-6},{y:-190,x:10},
   {y:-233,x:16},{y:-258,x:17,flat:true},{y:-325,x:17,flat:true},
-  {y:-345,x:13},{y:-396,x:-10},{y:-445,x:15},
-  {y:-495,x:-9},{y:-548,x:11},{y:-575,x:3},
+  {y:-345,x:13},{y:-396,x:-7},{y:-445,x:10},
+  {y:-495,x:-5},{y:-548,x:8},{y:-575,x:3},
   {y:-595,x:0},{y:-665,x:0}
 ]);
 
@@ -33,9 +34,9 @@ export const COURSES=Object.freeze([
    bridges:[{y:-130,opening:4.5},{y:-275,opening:4.5}],
    aqueduct:null},
   {id:'test',number:'02',name:'The Waterway Lab',
-   description:'Tighter S-bends, alternating deep and shallow cuts, a stone aqueduct and a brick-lined channel. Compare speed and steering as the water changes.',
+   description:'Navigable S-bends, alternating deep and shallow cuts, a stone aqueduct and a brick-lined channel. Compare speed and steering as the water changes.',
    lock:{startY:-610,endY:-645,centreX:0,width:4.65},
-   bridges:[{y:-107,opening:4.8},{y:-490,opening:4.8}],
+   bridges:[{y:-15,opening:6.8},{y:-214,opening:6.8}],
    aqueduct:{top:-244,bottom:-332},
    zones:TEST_ZONES}
 ]);
