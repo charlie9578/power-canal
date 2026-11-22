@@ -21,11 +21,11 @@ Open [http://localhost:8000](http://localhost:8000) on your computer. To play fr
 The opening menu now offers two selectable stages:
 
 - **01 — Bridge to Lock:** the original winding narrowboat time trial, unchanged in layout.
-- **02 — The Waterway Lab:** a longer engineering test course with tighter S-bends, deep/broad reaches, shallow/narrow sections, a **stone aqueduct**, a brick-lined cutting, two bridges and a lock finish. The 48-foot narrowboat is unchanged: it is the *waterway* that varies.
+- **02 — The Waterway Lab:** a longer engineering test course with navigable S-bends, deep/broad reaches, shallow/narrow sections, a **stone aqueduct**, a brick-lined cutting, two bridges and a lock finish. The 48-foot narrowboat is unchanged: it is the *waterway* that varies.
 
 The conditions display shows the current **nominal channel width and depth**. These quantities feed the Schijf-based resistance calculation and shore effects, so this is a real handling and speed test, not just different paint. Bank construction changes the visuals; stone, brick and earth do not yet have separately identified hydrodynamic coefficients. All geometry is fictional and dimensions are exploratory, not a surveyed canal.
 
-To switch courses, use the **≋ course button** next to Pause and Restart, or **Change Course** on the results screen. Each stage maintains its own best time. You can also start the test course directly with [the Waterway Lab URL](https://charlie9578.github.io/power-canal/?course=test&v=20261122-7).
+To switch courses, use the **≋ course button** next to Pause and Restart, or **Change Course** on the results screen. Each stage maintains its own best time. You can also start the test course directly with [the Waterway Lab URL](https://charlie9578.github.io/power-canal/?course=test&v=20261122-9).
 
 **Touch controls**
 
@@ -64,7 +64,8 @@ The fixed-timestep dynamics model in `src/physics.js` now uses a coupled **surge
 - `src/main.js`: canvas rendering, collision/penalty rules, touch/keyboard input, simulation loop and timing.
 - `src/water.js`: movement-aligned, world-space wake samples and their lifetimes.
 - `src/throttle.js`: 11-position combined throttle and reverse lever.
-- `tests/courses.test.js`: route selection, safe bend geometry, depth/width transitions and differential resistance.
+- `tests/courses.test.js`: route selection, centreline clearances, depth/width transitions and differential resistance.
+- `tests/navigation.test.js`: complete physics-based drive-throughs of both courses, including bridges and stopping inside the locks.
 - `tests/physics.test.js`: handling tests.
 - `tests/hydrodynamics.test.js`: friction, waves, restricted-water and propeller tests.
 - `tests/steering.test.js`: propeller trim and Nomoto model analysis tests.
@@ -89,4 +90,12 @@ The stern wake is intentionally subtle: a shorter-lived, sparser and less opaque
 
 ## Deployment verification
 
-GitHub Pages hosts the game at https://charlie9578.github.io/power-canal/ . The HUD shows the build version (currently **v0.3.1**). Static CSS and JS links include a release-specific query string so a new deployment loads fresh game assets. If the old page is still cached, open https://charlie9578.github.io/power-canal/?v=20261122-7 to force a fresh document URL.
+GitHub Pages hosts the game at https://charlie9578.github.io/power-canal/ . The HUD shows the build version (currently **v0.3.3**). Static CSS and JS links include a release-specific query string so a new deployment loads fresh game assets. If the old page is still cached, open https://charlie9578.github.io/power-canal/?v=20261122-9 to force a fresh document URL.
+
+### v0.3.3 navigability correction
+
+The original Stage 01 remains unchanged. Stage 02's original shallow narrows placed a narrow bridge in a steep S-bend. The bridge collision test assumes a cross-channel aperture and would strike a correctly aligned boat on that curve. In addition, the narrow and twisting stretch could keep the hull marginally overlapping the bank; the former contact drag applied very strongly even to a tiny scrape, making progress almost impossible.
+
+Stage 02 now has more forgiving shallow bends (8.6 m wide, still only 0.98 m deep), and two wider (6.8 m) bridges placed on relatively straight, open reaches. The other bends have been eased where necessary to preserve clearance. Bank contact now permits very slight sampling overlap without dragging the hull to a halt, while larger collisions still slow the boat and can incur penalties.
+
+A test-only look-ahead helm drives the unchanged 48-foot boat with actual thrust, drag, yaw inertia, bridges, bank checks and lock completion logic. It must finish *both* courses without bridge strikes or significant bank contact. The automatic controller is only in the test suite; no player steering assistance has been added. This demonstrates navigability, not a guarantee that every steering strategy or speed will succeed.
