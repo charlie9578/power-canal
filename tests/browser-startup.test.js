@@ -7,10 +7,11 @@ import { resistanceComponents } from '../src/hydrodynamics.js';
 import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from '../src/ghost.js';
 import { drawFields, drawTowpath, drawStoneBridge } from '../src/scenery.js';
 import { updateLockStop, LOCK_STOP } from '../src/lock-stop.js';
+import { TECHNICAL_PATH,technicalNearest,technicalBankContact,technicalSectionAt } from '../src/technical-route.js';
 import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from '../src/water.js';
 import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from '../src/throttle.js';
 import { START_Y, LOCK, COURSES, getActiveCourse, setActiveCourse, centreAt, halfWidthAt,
-         waterwayAt, checkBanks, checkObstacles, insideLock, pointOnHull, canalEnvironmentAt } from '../src/course.js';
+         waterwayAt, waterwayAtPosition, checkBanks, checkObstacles, insideLock, pointOnHull, canalEnvironmentAt, technicalPath, technicalRouteProgress } from '../src/course.js';
 
 // Render smoke test for the browser entrypoint without external dependencies.
 // Catch missing HUD references and exceptions during the first animation frame.
@@ -25,10 +26,11 @@ const modules={
   BOAT,clamp,createBoat,stepBoat,resistanceComponents,
   appendGhostFrame,makeGhost,readGhost,saveGhost,shouldReplaceGhost,sampleGhost,
   drawFields,drawTowpath,drawStoneBridge,updateLockStop,LOCK_STOP,
+  TECHNICAL_PATH,technicalNearest,technicalBankContact,technicalSectionAt,
   createWakeMark,pruneWakeMarks,travelAngle,propWashSideOffset,WAKE_LIFETIME,
   clampNotch,throttleFromNotch,notchFromTrackPosition,positionForNotch,labelForNotch,
-  START_Y,LOCK,COURSES,getActiveCourse,setActiveCourse,centreAt,halfWidthAt,waterwayAt,
-  checkBanks,checkObstacles,insideLock,pointOnHull,canalEnvironmentAt
+  START_Y,LOCK,COURSES,getActiveCourse,setActiveCourse,centreAt,halfWidthAt,waterwayAt,waterwayAtPosition,
+  checkBanks,checkObstacles,insideLock,pointOnHull,canalEnvironmentAt,technicalPath,technicalRouteProgress
 };
 
 function boot(course){
