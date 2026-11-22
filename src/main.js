@@ -1,11 +1,11 @@
-import { resistanceComponents } from './hydrodynamics.js?v=20261122-13';
-import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from './ghost.js?v=20261122-13';
-import { drawFields, drawTowpath, drawStoneBridge } from './scenery.js?v=20261122-13';
-import { updateLockStop, LOCK_STOP } from './lock-stop.js?v=20261122-13';
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-13';
-import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-13';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-13';
-import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-13';
+import { resistanceComponents } from './hydrodynamics.js?v=20261122-14';
+import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from './ghost.js?v=20261122-14';
+import { drawFields, drawTowpath, drawStoneBridge } from './scenery.js?v=20261122-14';
+import { updateLockStop, LOCK_STOP } from './lock-stop.js?v=20261122-14';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-14';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-14';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-14';
+import { START_Y, LOCK, COURSES, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, checkObstacles, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-14';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
@@ -23,7 +23,8 @@ let camera={x:0,y:0}, width=0,height=0,scale=5.4, clock=0;
 let wakeMarks=[],lastWakeAt=0;
 let recordedFrames=[],currentGhost=null,ghostEnabled=true;
 const STEP=1/60, MAX_DT=.05;
-let selectedCourse=new URLSearchParams(window.location.search).get('course')==='test'?'test':'classic';
+const requestedCourse=new URLSearchParams(window.location.search).get('course');
+let selectedCourse=COURSES.some(c=>c.id===requestedCourse)?requestedCourse:'classic';
 setActiveCourse(selectedCourse);
 function bestKey(courseId=selectedCourse){return 'power-canal-best-'+courseId;}
 function readBestFor(courseId){
@@ -38,12 +39,12 @@ function readBest(){return readBestFor(selectedCourse);}
 let best=readBest();
 function renderCoursePicker(){
   const course=getActiveCourse();
-  $('stageNumber').textContent='POWER CANAL v0.4.3 / STAGE '+course.number;
+  $('stageNumber').textContent='POWER CANAL v0.5.0 / STAGE '+course.number;
   $('stageName').textContent=course.name;
   $('startDescription').textContent=course.description;
-  $('homeProgress').textContent=['classic','test'].filter(id=>readBestFor(id)!==null).length+' / 2';
+  $('homeProgress').textContent=COURSES.filter(c=>readBestFor(c.id)!==null).length+' / '+COURSES.length;
   $('homeSelectedBest').textContent=best===null?'--:--.--':formatTime(best);
-  for(const [id,labelId] of [['classic','stageBestClassic'],['test','stageBestTest']]){
+  for(const [id,labelId] of [['classic','stageBestClassic'],['test','stageBestTest'],['technical','stageBestTechnical']]){
     const time=readBestFor(id);
     $(labelId).textContent=time===null?'NOT COMPLETED':'BEST '+formatTime(time);
   }
@@ -147,6 +148,20 @@ function simulate(dt){
       addPenalty(bank.depth>1.05?5:2,bank.depth>1.05?'Bank impact':'Bank scrape');
     }
   }else{contactTotal=0;}
+  // The visible stone wharf projects into the winding hole: colliding
+  // with it gives real resistance/penalties, just like any solid bank.
+  const obstruction=checkObstacles(boat,BOAT.length,BOAT.beam);
+  if(obstruction.depth>0){
+    boat.x+=obstruction.normalX*Math.min(obstruction.depth*.25,.5);
+    const severity=clamp((obstruction.depth-.035)/.3,0,1);
+    if(severity>0){
+      boat.vx*=Math.exp(-dt*2.4*severity);
+      boat.vy*=Math.exp(-dt*2.4*severity);
+      boat.yawRate*=Math.exp(-dt*.8*severity);
+    }
+    if(obstruction.depth>.35&&collisionCooldown<=0&&Math.hypot(prev.vx,prev.vy)>.45)
+      addPenalty(obstruction.depth>1.05?5:2,obstruction.name+' scrape');
+  }
   // Bridges are narrow passages: test the entire hull while crossing.
   for(const bridge of getActiveCourse().bridges){
     const by=bridge.y;
@@ -226,7 +241,13 @@ function updateUI(){
   }else{
     // Routine navigation guidance belongs in the control-deck footer,
     // not in a banner over the water and hydraulic information.
-    ui.hint.textContent=selectedCourse==='test'?'WATCH DEPTH & WIDTH':'WATCH YOUR STERN';
+    if(selectedCourse==='technical'){
+      const z=getActiveCourse().turningZone;
+      if(z && boat.y<=z.startY+16 && boat.y>=z.endY){
+        ui.hint.textContent=boat.y>z.centreY
+          ? 'SLOW · HARD TILLER':'PULSE AHEAD · CLEAR WHARF';
+      }else ui.hint.textContent='WINDING HOLE AHEAD';
+    }else ui.hint.textContent=selectedCourse==='test'?'WATCH DEPTH & WIDTH':'WATCH YOUR STERN';
   }
   ui.feedback.textContent=messageTime>0?message:paused?'PAUSED':'';
   const visible=Boolean(currentGhost&&ghostEnabled&&running&&sampleGhost(currentGhost,elapsed));
@@ -373,8 +394,52 @@ function drawAqueductDeck(low,high){
     }
   }
 }
+function drawTurningFeatures(low,high){
+  const course=getActiveCourse();
+  if(!course.turningZone)return;
+  // An actual stone quay protrudes from the right shore. Its outline uses
+  // the same metre coordinates as the collision checker, so the player can
+  // see precisely what the hull must avoid.
+  for(const quay of course.obstacles??[]){
+    if(quay.top<low||quay.bottom>high)continue;
+    const corners=[
+      project(quay.left,quay.top),project(quay.right,quay.top),
+      project(quay.right,quay.bottom),project(quay.left,quay.bottom)
+    ];
+    const shadow=corners.map(p=>({x:p.x+3,y:p.y+4}));
+    polygon(shadow,'#19363c66',null);
+    polygon(corners,'#a69c88','#635e51',3);
+    for(let y=quay.bottom+4;y<quay.top;y+=6){
+      const a=project(quay.left,y),b=project(quay.right,y);
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+      ctx.strokeStyle='#726b5b';ctx.lineWidth=1;ctx.stroke();
+      const bollard=project(quay.left+1.1,y);
+      ctx.fillStyle='#e1cba5';ctx.beginPath();
+      ctx.arc(bollard.x,bollard.y,1.6,0,Math.PI*2);ctx.fill();
+    }
+    const label=project(quay.left+5,(quay.top+quay.bottom)/2);
+    ctx.textAlign='center';ctx.font='bold 10px DM Sans';
+    ctx.fillStyle='#f8e6c4';ctx.fillText('STONE',label.x,label.y-4);
+    ctx.fillText('WHARF',label.x,label.y+8);
+  }
+  for(const sign of [
+    {y:-80,label:'SLOW TO TURN'},
+    {y:-106,label:'TILLER + THRUST'},
+    {y:-185,label:'NARROW EXIT'}
+  ]){
+    if(sign.y<low||sign.y>high)continue;
+    const x=centreAt(sign.y)-halfWidthAt(sign.y)-4.5;
+    const p=project(x,sign.y);
+    ctx.fillStyle='#344b3d';ctx.fillRect(p.x-2,p.y,4,24);
+    ctx.fillStyle='#f2d7a2';ctx.fillRect(p.x-99,p.y-14,103,23);
+    ctx.strokeStyle='#775a3d';ctx.lineWidth=1.5;
+    ctx.strokeRect(p.x-99,p.y-14,103,23);
+    ctx.textAlign='center';ctx.font='bold 9px DM Sans';
+    ctx.fillStyle='#533e2d';ctx.fillText(sign.label,p.x-47,p.y+1);
+  }
+}
 function drawCanal(){
-  ctx.fillStyle=getActiveCourse().id==='test'?'#b6c9a4':'#c5d4ae';
+  ctx.fillStyle=getActiveCourse().id==='test'?'#b6c9a4':getActiveCourse().id==='technical'?'#b4c49e':'#c5d4ae';
   ctx.fillRect(0,0,width,height);
   const ya=camera.y-(height/scale),yb=camera.y+(height/scale);
   const low=Math.floor(ya/2)*2,high=Math.ceil(yb/2)*2;
@@ -416,6 +481,7 @@ function drawCanal(){
     }
   }
   drawTowpath(ctx,{low,high,project,centreAt,waterwayAt,scale});
+  drawTurningFeatures(low,high);
   // Surface wave marks distinguish water motion without disguising width.
   ctx.strokeStyle='#e2f5e366';ctx.lineWidth=1;
   for(let y=low;y<high;y+=8){
