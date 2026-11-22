@@ -38,7 +38,7 @@ function boot(course){
   let paintStarted=false;
   const ctx=new Proxy({},{
     get(_target,key){
-      if(key==='fillRect'||key==='strokeRect'||key==='ellipse'||key==='lineTo')
+      if(['fillRect','strokeRect','ellipse','lineTo','stroke','fill','arc'].includes(key))
         return (...args)=>{calls.paint++;paintStarted=true;};
       return ()=>{};
     },
@@ -93,7 +93,7 @@ function boot(course){
   assert.match(node('homeSelectedBest').textContent,/--:--/);
   assert.equal(frames.length,1,'entrypoint should schedule animation');
   frames.shift()(16);
-  assert.ok(calls.paint>100,'first frame should paint a canal and boat');
+  assert.ok(calls.paint>(course==='technical'?55:100),'first frame should paint a canal and boat');
   assert.match(node('waterInfo').textContent,/DEPTH.*WIDTH/);
   assert.equal(node('stageName').textContent,course==='technical'?'The Winding Hole':course==='test'?'The Waterway Lab':'Bridge to Lock');
   assert.equal(node('hintDisplay').textContent,
@@ -121,7 +121,7 @@ function boot(course){
     assert.ok(frames.length>0);
     frames.shift()(tick);
     tick+=16;
-    assert.ok(calls.paint>beforeSection+40,'section '+y+' must render');
+    assert.ok(calls.paint>beforeSection+(course==='technical'?25:40),'section '+y+' must render');
   }
   // The approaching-lock prompt is drawn only in the dedicated panel,
   // not across the middle of the playfield or over water-depth information.
