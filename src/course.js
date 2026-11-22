@@ -2,11 +2,11 @@
 // World coordinates are metres; travel is from positive y towards negative y.
 export const WIDTH=12.8;
 export const START_Y=60;
-export const LOCK={startY:-700,endY:-731,centreX:0,width:4.65};
+export const LOCK={startY:-390,endY:-421,centreX:0,width:4.65};
 export function centreAt(y){
   // A flowing fictional canal featuring two bends and a longer lock approach.
   // Fade curves out near the lock to create a straight precision finish.
-  const fade=Math.max(0,Math.min(1,(-y-570)/75));
+  const fade=Math.max(0,Math.min(1,(-y-305)/65));
   return (1-fade)*(12*Math.sin((y-45)/93)+5*Math.sin((y-30)/39)) + fade*0;
 }
 export function halfWidthAt(y){
