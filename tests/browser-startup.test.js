@@ -9,8 +9,8 @@ import { drawFields, drawTowpath, drawStoneBridge } from '../src/scenery.js';
 import { updateLockStop, LOCK_STOP } from '../src/lock-stop.js';
 import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from '../src/water.js';
 import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from '../src/throttle.js';
-import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt,
-         waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from '../src/course.js';
+import { START_Y, LOCK, COURSES, getActiveCourse, setActiveCourse, centreAt, halfWidthAt,
+         waterwayAt, checkBanks, checkObstacles, insideLock, pointOnHull, canalEnvironmentAt } from '../src/course.js';
 
 // Render smoke test for the browser entrypoint without external dependencies.
 // Catch missing HUD references and exceptions during the first animation frame.
@@ -27,8 +27,8 @@ const modules={
   drawFields,drawTowpath,drawStoneBridge,updateLockStop,LOCK_STOP,
   createWakeMark,pruneWakeMarks,travelAngle,propWashSideOffset,WAKE_LIFETIME,
   clampNotch,throttleFromNotch,notchFromTrackPosition,positionForNotch,labelForNotch,
-  START_Y,LOCK,getActiveCourse,setActiveCourse,centreAt,halfWidthAt,waterwayAt,
-  checkBanks,insideLock,pointOnHull,canalEnvironmentAt
+  START_Y,LOCK,COURSES,getActiveCourse,setActiveCourse,centreAt,halfWidthAt,waterwayAt,
+  checkBanks,checkObstacles,insideLock,pointOnHull,canalEnvironmentAt
 };
 
 function boot(course){
@@ -66,7 +66,7 @@ function boot(course){
     }
     return nodes.get(id);
   }
-  const buttons=['classic','test'].map(courseName=>{
+  const buttons=['classic','test','technical'].map(courseName=>{
     const btn={dataset:{course:courseName},classList:{toggle(){}},setAttribute(){},
       addEventListener(name,fn){btn[name]=fn;}};
     return btn;
@@ -87,15 +87,15 @@ function boot(course){
   });
   vm.runInContext(source,sandbox,{timeout:2000,filename:'src/main.js'});
   assert.equal(node('gameShell').classList.contains('is-home'),true,'home initially hides game controls');
-  assert.match(node('homeProgress').textContent,/0 \/ 2/);
+  assert.match(node('homeProgress').textContent,/0 \/ 3/);
   assert.match(node('homeSelectedBest').textContent,/--:--/);
   assert.equal(frames.length,1,'entrypoint should schedule animation');
   frames.shift()(16);
   assert.ok(calls.paint>100,'first frame should paint a canal and boat');
   assert.match(node('waterInfo').textContent,/DEPTH.*WIDTH/);
-  assert.equal(node('stageName').textContent,course==='test'?'The Waterway Lab':'Bridge to Lock');
+  assert.equal(node('stageName').textContent,course==='technical'?'The Winding Hole':course==='test'?'The Waterway Lab':'Bridge to Lock');
   assert.equal(node('hintDisplay').textContent,
-    course==='test'?'WATCH DEPTH & WIDTH':'WATCH YOUR STERN',
+    course==='technical'?'WINDING HOLE AHEAD':course==='test'?'WATCH DEPTH & WIDTH':'WATCH YOUR STERN',
     'cruising hints should use unobstructed deck footer');
   assert.equal(node('lockIndicator').classList.contains('is-hidden'),true,
     'dock guidance only appears at the lock');
@@ -111,7 +111,7 @@ function boot(course){
   // Exercise lock, stone bridge, aqueduct and brick-cutting draw paths, not
   // merely the first frame beside the start. This would have caught an
   // exception that occurred only near the finish.
-  const locations=course==='test'?[-95,-280,-490,-625]:[-130,-405];
+  const locations=course==='technical'?[-85,-130,-169,-215,-405]:course==='test'?[-95,-280,-490,-625]:[-130,-405];
   let tick=96;
   for(const y of locations){
     vm.runInContext('boat.y='+y+';boat.x=centreAt('+y+');camera.y=boat.y;camera.x=boat.x;',sandbox);
@@ -166,7 +166,7 @@ function boot(course){
   assert.ok(saved.has('power-canal-best-'+course));
   node('courseButton').__events.click();
   assert.equal(node('gameShell').classList.contains('is-home'),true,'course button returns to home');
-  assert.match(node('homeProgress').textContent,/1 \/ 2/);
+  assert.match(node('homeProgress').textContent,/1 \/ 3/);
   assert.match(node('homeSelectedBest').textContent,/00:01/);
   assert.match(node('homeGhostStatus').textContent,/Replay ghost ready/);
   node('startButton').__events.click();
@@ -178,7 +178,7 @@ function boot(course){
   assert.ok(node('gameShell').classList.contains('is-home'));
 }
 
-for(const route of ['classic','test']){
+for(const route of ['classic','test','technical']){
   test(route+' starts and draws its canal without a blank canvas',()=>{
     const previous=getActiveCourse().id;
     try{boot(route);}finally{setActiveCourse(previous);}
