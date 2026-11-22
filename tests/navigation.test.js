@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {BOAT, createBoat, stepBoat, clamp} from '../src/physics.js';
+import { updateLockStop } from '../src/lock-stop.js';
 import {
   LOCK,setActiveCourse,getActiveCourse,centreAt,checkBanks,
   pointOnHull,insideLock,canalEnvironmentAt,waterwayAt
@@ -17,7 +18,7 @@ function driveRoute(courseId){
   try{
     const dt=1/60, endTarget=(LOCK.startY+LOCK.endY)/2;
     const b=createBoat(centreAt(60),60,0);
-    let bankContacts=0,bridgeStrikes=0,holdFrom=null;
+    let bankContacts=0,bridgeStrikes=0,lockHold=0;
     let time=0,finishTime=null,shallowSeen=false,deepSeen=false;
     for(let i=0;i<730/dt;i++){
       time=i*dt;
@@ -70,11 +71,9 @@ function driveRoute(courseId){
         b.y+=LOCK.endY+.35-nose.y;
         b.vy=Math.max(0,b.vy)*.25;
       }
-      if(insideLock(b,BOAT.length,BOAT.beam) &&
-         Math.hypot(b.vx,b.vy)<.08 && Math.abs(b.yawRate)<.025){
-        if(holdFrom===null)holdFrom=time;
-        if(time-holdFrom>1.4){finishTime=time;break;}
-      }else holdFrom=null;
+      const docking=updateLockStop(b,lockHold,dt,BOAT.length,BOAT.beam);
+      lockHold=docking.hold;
+      if(docking.complete){finishTime=time;break;}
     }
     return {finishTime,bankContacts,bridgeStrikes,shallowSeen,deepSeen,boat:b};
   }finally{setActiveCourse(prior);}
