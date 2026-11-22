@@ -52,3 +52,44 @@
 .throttle-interface .control-readout{font-size:10px;min-width:54px}
 .throttle-track:focus-visible,.tiller-pad:focus-visible{outline:2px solid #f1bb72;outline-offset:2px;border-radius:6px}
 @media(max-height:650px){.throttle-labels{font-size:8px}.throttle-interface{gap:4px}.throttle-interface .control-readout{min-width:43px;font-size:9px}}
+
+
+/* v0.3.1 — route selection and live canal test conditions */
+.conditions-chip{
+  position:absolute;top:134px;right:12px;
+  display:flex;flex-direction:column;align-items:flex-end;gap:2px;
+  max-width:72%;padding:6px 9px;border-radius:8px;
+  background:#143a3bd9;border:1px solid #d6efe44d;
+  text-align:right;pointer-events:none;
+}
+.conditions-chip strong{font-size:9px;letter-spacing:1px;color:#ebeed4}
+.conditions-chip span{font-family:'Space Grotesk',sans-serif;font-size:10px;color:#c8eced}
+.route-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:13px 0}
+.route-option{
+  min-width:0;padding:11px 7px;border:1px solid #668c87;border-radius:10px;
+  background:#1d4247;color:#c8dad3;text-align:left;
+  display:flex;flex-direction:column;gap:4px;
+}
+.route-option strong{font-size:10px;letter-spacing:.6px}
+.route-option small{font-size:10px;line-height:1.25;color:#a8bfb6}
+.route-option.is-selected{border-color:#f2bf7d;background:#33524d;box-shadow:inset 0 0 0 1px #f2bf7d70}
+.route-option.is-selected strong{color:#ffd49b}
+.route-option:focus-visible,.secondary-button:focus-visible,.deck-actions button:focus-visible{
+  outline:2px solid #f1bb72;outline-offset:2px
+}
+.secondary-button{
+  border:1px solid #658e84;background:#284a49;color:#e8ebdc;border-radius:9px;
+  padding:10px 16px;width:100%;font-size:11px;letter-spacing:1px;font-weight:800;
+}
+#startModal .modal{max-height:calc(100% - 12px);overflow:auto;touch-action:pan-y}
+#startModal .modal h1{margin:8px 0 11px;font-size:clamp(42px,11vw,61px)}
+#startModal .modal .fine-print{margin:10px 0}
+#startModal .modal .primary-button{margin-top:8px}
+@media(max-height:650px){
+  #startModal .modal{padding:12px 16px}
+  #startModal .modal h1{font-size:40px;margin:5px 0 7px}
+  #startModal .modal p{font-size:11px}
+  .route-option{padding:7px 6px}
+  .route-picker{margin:8px 0}
+  .conditions-chip{top:122px}
+}
