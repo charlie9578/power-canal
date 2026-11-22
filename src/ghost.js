@@ -24,7 +24,7 @@ export function appendGhostFrame(frames,time,boat,force=false){
 }
 
 export function makeGhost(courseId,score,elapsed,frames){
-  if(!['classic','test'].includes(courseId)||!finite(score)||score<0||
+  if(!['classic','test','technical'].includes(courseId)||!finite(score)||score<0||
       !finite(elapsed)||elapsed<0||!Array.isArray(frames))return null;
   const ghost={v:GHOST_FORMAT,courseId,score:round(score),
     elapsed:round(elapsed),frames:frames.map(f=>[...f])};
