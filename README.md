@@ -33,10 +33,11 @@ Contact with the bank, a bridge, or the far lock gate slows your boat; significa
 
 The fixed-timestep dynamics model in `src/physics.js` now uses a coupled **surge–sway–yaw** system with rigid-body and added-water inertia. It includes:
 
-- Boat mass, forward and reverse engine thrust, longitudinal linear/quadratic drag, and speed-dependent resistance.\n- Stylised V-shaped bow waves aligned to actual travel velocity, lingering world-space trailing wake, and throttle-dependent propeller wash that reverses direction in astern.
+- ITTC-1957 hull friction, length-dependent Froude wave-resistance proxy, Schijf canal limiting speed, and speed-dependent propeller thrust.
+- Model-driven V-shaped bow waves, a faint lingering stern wake, and tiller-directed propeller wash in ahead/reverse.
 - Lateral velocity and damping, rather than steering the heading vector directly.
 - Rate-limited direct tiller-to-rudder steering, with stronger yaw inertia and weaker lateral/yaw damping, distributed cross-flow hull forces, propeller-enhanced rudder lift at low forward speed, weak reverse rudder action, and sway/yaw coupling.
-- Depth/channel-blockage-dependent resistance, approximate bank bow-pressure/stern-suction forces, and a hull-length-based boundary check for bank contact, bridge checks, and a full-hull lock finish.
+- Approximate Schijf-based confined-water resistance, bank bow-pressure/stern-suction forces, and a hull-length-based boundary check for bank contact, bridge checks, and a full-hull lock finish.
 
 **Calibration warning:** This is a physics-structured but not yet instrument-calibrated model. The hull, rudder, thrust, drag and bank coefficients are estimates; the confinement and bank models are deliberately simplified, and interactions with *other boats* are future work. See [PHYSICS.md](PHYSICS.md) for equations, assumptions and right-half-plane pole analysis.
 
@@ -44,17 +45,24 @@ The fixed-timestep dynamics model in `src/physics.js` now uses a coupled **surge
 
 - `index.html`: game HUD, overlays, left throttle and right tiller controls.
 - `style.css`: responsive portrait mobile layout.
-- `src/physics.js`: three-degree-of-freedom surge/sway/yaw model and linearized directional poles.\n- `PHYSICS.md`: engineering notes, model derivation and calibration plan.
+- `src/physics.js`: three-degree-of-freedom surge/sway/yaw model and directional poles.
+- `src/hydrodynamics.js`: hull resistance, Schijf limit, and propeller KT-J model.
+- `src/steering-analysis.js`: Nomoto gain, zeros and poles.
+- `PHYSICS.md`: engineering notes, model derivation and calibration plan.
 - `src/course.js`: fictional canal centreline, banks, bridges and lock geometry.
-- `src/main.js`: canvas rendering, collision/penalty rules, touch/keyboard input, simulation loop and timing.\n- `src/water.js`: movement-aligned, world-space wake samples and their lifetimes.\n- `src/throttle.js`: 11-position combined throttle and reverse lever.
-- `tests/physics.test.js`: smoke tests for key handling and finish geometry.
+- `src/main.js`: canvas rendering, collision/penalty rules, touch/keyboard input, simulation loop and timing.
+- `src/water.js`: movement-aligned, world-space wake samples and their lifetimes.
+- `src/throttle.js`: 11-position combined throttle and reverse lever.
+- `tests/physics.test.js`: handling tests.
+- `tests/hydrodynamics.test.js`: friction, waves, restricted-water and propeller tests.
+- `tests/steering.test.js`: propeller trim and Nomoto model analysis tests.
 
 Run tests with `npm test` (requires modern Node.js; only the tests need Node).
 
 ## Planned next steps
 
-1. Instrument and calibrate real narrowboat speed-versus-power, stopping, zigzag and turning response; validate handling on actual phones.
-2. Add a more physical canal cross-section: shallow-water drag and bank suction; refine the stylised bow/wake visuals.
+1. Calibrate propeller RPM/thrust, straight-line power, stopping, zigzag, and turning curves using real narrowboat trials.
+2. Improve bank geometry, return-flow and squat estimates, and validate bow waves against restricted-water trials.
 3. Add a second boat with approximation-based pressure interaction for overtaking.
 4. Add replay/ghost racing, multiple stages, and an optional steering-assist mode.
 5. Improve canal banks, bridges and lock visuals while retaining inexpensive 2D canvas rendering.
@@ -65,8 +73,8 @@ Run tests with `npm test` (requires modern Node.js; only the tests need Node).
 
 ### Water visual tuning
 
-The stern wake is intentionally subtle: a shorter-lived, sparser and less opaque trailing V, separate from the bow wave and propeller wash. Propeller wash bends with the **actual, delayed rudder angle** (strongly when ahead, weakly astern), even when the boat is nearly stationary. Wake strength is purely visual; boat physics and scoring are unchanged.
+The stern wake is intentionally subtle: a shorter-lived, sparser and less opaque trailing V, separate from the bow wave and propeller wash. Propeller wash bends with the **actual, rate-limited rudder angle** (strongly when ahead, weakly astern), even when the boat is nearly stationary. Bow-wave intensity now follows the modelled wave and restricted-water resistance, but remains a stylised visual.
 
 ## Deployment verification
 
-GitHub Pages hosts the game at https://charlie9578.github.io/power-canal/ . The HUD shows the build version (currently **v0.2.1**). Static CSS and JS links include a release-specific query string so a new deployment loads fresh game assets. If the old page is still cached, open https://charlie9578.github.io/power-canal/?v=20261122-5 to force a fresh document URL.
+GitHub Pages hosts the game at https://charlie9578.github.io/power-canal/ . The HUD shows the build version (currently **v0.3.0**). Static CSS and JS links include a release-specific query string so a new deployment loads fresh game assets. If the old page is still cached, open https://charlie9578.github.io/power-canal/?v=20261122-6 to force a fresh document URL.
