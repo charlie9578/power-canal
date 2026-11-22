@@ -1,7 +1,8 @@
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-5';
-import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-5';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-5';
-import { WIDTH, START_Y, LOCK, centreAt, halfWidthAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-5';
+import { resistanceComponents } from './hydrodynamics.js?v=20261122-6';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-6';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-6';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-6';
+import { WIDTH, START_Y, LOCK, centreAt, halfWidthAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-6';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
@@ -295,7 +296,12 @@ function drawWake(){
     // Continuous bow shoulder waves, increasing with vessel speed.
     const bow=pointOnHull(boat,0,BOAT.length*.53);
     const angle=travelAngle(boat.vx,boat.vy,boat.heading);
-    const strength=clamp(ahead/1.7,0,1);
+    // Use the same wave and restricted-water load that resists the boat.
+    // Visual height is a stylised mapping, not a computed free-surface field.
+    const channel=canalEnvironmentAt(boat,BOAT.beam,BOAT.length);
+    const hydrodynamics=resistanceComponents(ahead,BOAT,channel);
+    const waveLoad=hydrodynamics.wave+0.4*hydrodynamics.restricted;
+    const strength=clamp(Math.sqrt(waveLoad/230),0,1);
     for(const side of [-1,1]){
       const points=[];
       for(let i=0;i<=14;i++){
