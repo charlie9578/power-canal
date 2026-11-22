@@ -8,7 +8,7 @@ const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
 const ui={
   start:$('startModal'), finish:$('finishModal'), time:$('timeDisplay'), penalty:$('penaltyDisplay'),
   speed:$('speedDisplay'), state:$('stateDisplay'), feedback:$('feedback'), course:$('courseMessage'),
-  throttleTrack:$('throttleTrack'), throttleThumb:$('throttleThumb'), throttleReadout:$('throttleReadout'),
+  throttleTrack:$('throttleTrack'), throttleThumb:$('throttleThumb'),
   tillerPad:$('tillerPad'), tillerStick:$('tillerStick'), tillerReadout:$('tillerReadout'), hint:$('hintDisplay')
 };
 let boat, controls, elapsed, penalties, running=false, finished=false, paused=false;
@@ -53,7 +53,7 @@ function simulate(dt){
   stepBoat(boat,controls,dt);
   // Record disturbances in world coordinates so they remain in place as the
   // boat changes heading. Waves gradually disappear after the boat has passed.
-  if(clock-lastWakeAt>0.24){
+  if(clock-lastWakeAt>0.48){
     const mark=createWakeMark(boat,clock);
     if(mark)wakeMarks.push(mark);
     lastWakeAt=clock;
@@ -119,7 +119,6 @@ function renderControls(){
   ui.throttleThumb.style.top=positionForNotch(notch)+'%';
   ui.throttleTrack.setAttribute('aria-valuenow',String(notch));
   ui.throttleTrack.setAttribute('aria-valuetext',labelForNotch(notch));
-  ui.throttleReadout.textContent=labelForNotch(notch);
   ui.tillerStick.style.transform='translateX(-50%) rotate('+r*52+'deg)';
   ui.tillerPad.setAttribute('aria-valuenow',String(Math.round(r*100)));
   ui.tillerReadout.textContent=Math.abs(r)<.04?'CENTRE':(r<0?'PORT ':'STBD ')+Math.round(Math.abs(r)*100)+'%';
@@ -272,14 +271,14 @@ function drawWake(){
   for(const mark of wakeMarks){
     const age=clock-mark.time;
     const fade=Math.pow(Math.max(0,1-age/WAKE_LIFETIME),1.5);
-    const extent=(1.3+mark.strength*3.3);
+    const extent=(1.0+mark.strength*2.5);
     for(const side of [-1,1]){
       const points=[];
       for(let i=0;i<=6;i++){
         const t=i/6;
         points.push(wavePoint(mark,mark.angle,extent*t,side*(.35+extent*t*.5)));
       }
-      waveStroke(points,fade*mark.strength*.37,1.4);
+      waveStroke(points,fade*mark.strength*.17,1.05);
     }
   }
 
