@@ -400,28 +400,91 @@ function drawCanal(){
   drawLockApproach();
   drawLock();
 }
+// Signposted braking zone preceding the open lock throat. These markers
+// indicate the real lock coordinates without altering the collision model.
+function drawLockApproach(){
+  for(const distance of [52,35,19]){
+    const y=LOCK.startY+distance;
+    const left=project(centreAt(y)-halfWidthAt(y)-2.4,y);
+    const right=project(centreAt(y)+halfWidthAt(y)+2.4,y);
+    if(left.y< -30||left.y>height+30)continue;
+    for(const marker of [left,right]){
+      ctx.fillStyle='#f5d38d';ctx.fillRect(marker.x-3,marker.y-9,6,18);
+      ctx.fillStyle='#ac5e45';ctx.fillRect(marker.x-3,marker.y-9,6,5);
+      ctx.fillRect(marker.x-3,marker.y+3,6,5);
+    }
+    // Directional chevrons stay outside the usable channel.
+    for(const side of [-1,1]){
+      const x=centreAt(y)+side*(halfWidthAt(y)+5);
+      const p=project(x,y);
+      ctx.beginPath();ctx.moveTo(p.x-side*6,p.y-5);
+      ctx.lineTo(p.x,p.y);ctx.lineTo(p.x-side*6,p.y+5);
+      ctx.strokeStyle='#f9cf86';ctx.lineWidth=2.5;ctx.stroke();
+    }
+  }
+  const signY=LOCK.startY+47;
+  const sign=project(centreAt(signY),signY);
+  if(sign.y> -30 && sign.y<height+30){
+    ctx.fillStyle='#143f40d9';ctx.fillRect(sign.x-61,sign.y-14,122,23);
+    ctx.strokeStyle='#e5c28a';ctx.lineWidth=1.5;ctx.strokeRect(sign.x-61,sign.y-14,122,23);
+    ctx.textAlign='center';ctx.font='bold 11px DM Sans';
+    ctx.fillStyle='#ffdf9e';ctx.fillText('LOCK AHEAD · SLOW',sign.x,sign.y+1);
+  }
+}
 function drawLock(){
-  const l=LOCK.centreX-LOCK.width/2,r=LOCK.centreX+LOCK.width/2;
-  const entrance=project(l,LOCK.startY);
-  const farGate=project(r,LOCK.endY);
-  const upper=Math.min(entrance.y,farGate.y);
-  const lower=Math.max(entrance.y,farGate.y);
+  const left=LOCK.centreX-LOCK.width/2,right=LOCK.centreX+LOCK.width/2;
+  const entrance=project(left,LOCK.startY),far=project(right,LOCK.endY);
+  const upper=Math.min(entrance.y,far.y);
+  const lower=Math.max(entrance.y,far.y);
   if(upper>height+80||lower< -80)return;
-  const length=lower-upper;
-  // World y decreases towards the bow; use the *screen* top rather than
-  // assuming LOCK.startY draws above LOCK.endY.
-  ctx.fillStyle='#5b939f';ctx.fillRect(entrance.x,upper,(r-l)*scale,length);
-  ctx.fillStyle='#b4a890';
-  ctx.fillRect(entrance.x-8,upper-8,8,length+18);
-  ctx.fillRect(farGate.x,upper-8,8,length+18);
-  ctx.fillStyle='#5b5043';
-  ctx.fillRect(entrance.x-10,entrance.y-8,(r-l)*scale+20,9);
-  ctx.fillStyle='#856b50';
-  ctx.fillRect(entrance.x-8,farGate.y-1,(r-l)*scale+16,10);
-  ctx.strokeStyle='#dcd1ad';ctx.lineWidth=2;
-  ctx.strokeRect(entrance.x,upper,(r-l)*scale,length);
-  ctx.fillStyle='#f5ebc8';ctx.font='bold 11px DM Sans';ctx.textAlign='center';
-  ctx.fillText('LOCK · STOP', (entrance.x+farGate.x)/2,upper+Math.min(45,length*.35));
+  const chamberWidth=(right-left)*scale,length=lower-upper;
+  const onTarget=insideLock(boat,BOAT.length,BOAT.beam);
+  // Distinct, darker chamber with broad cut-stone sides.
+  ctx.fillStyle=onTarget?'#427f83':'#488491';
+  ctx.fillRect(entrance.x,upper,chamberWidth,length);
+  ctx.fillStyle='#9e9989';ctx.fillRect(entrance.x-13,upper-8,13,length+20);
+  ctx.fillRect(far.x,upper-8,13,length+20);
+  ctx.fillStyle='#d3c4a6';ctx.fillRect(entrance.x-8,upper-8,5,length+20);
+  ctx.fillRect(far.x+3,upper-8,5,length+20);
+  for(let y=upper+10;y<lower;y+=15){
+    ctx.strokeStyle='#746c60';ctx.lineWidth=1;
+    for(const x of [entrance.x-13,far.x]){
+      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+13,y);ctx.stroke();
+    }
+  }
+  // Dashed central alignment and the full-hull stopping area.
+  ctx.save();ctx.setLineDash([8,8]);ctx.strokeStyle='#f8e7af9c';
+  ctx.lineWidth=1.5;ctx.beginPath();
+  ctx.moveTo((entrance.x+far.x)/2,upper+25);
+  ctx.lineTo((entrance.x+far.x)/2,lower-25);ctx.stroke();
+  ctx.restore();
+  // Far end only: genuinely closed lock gates. Entrance is OPEN!
+  ctx.fillStyle='#44382c';ctx.fillRect(entrance.x-2,upper-7,chamberWidth+4,14);
+  ctx.fillStyle='#c99b60';
+  ctx.fillRect(entrance.x,upper-5,chamberWidth/2-2,9);
+  ctx.fillRect(entrance.x+chamberWidth/2+2,upper-5,chamberWidth/2-2,9);
+  ctx.strokeStyle='#322920';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(entrance.x,upper-4);
+  ctx.lineTo(entrance.x+chamberWidth/2,upper+4);
+  ctx.lineTo(far.x,upper-4);ctx.stroke();
+  // Two entrance gate leaves are swung open along the walls, not across water.
+  ctx.strokeStyle='#d5a96b';ctx.lineWidth=5;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(entrance.x,lower+3);
+  ctx.lineTo(entrance.x-7,lower+21);
+  ctx.moveTo(far.x,lower+3);ctx.lineTo(far.x+7,lower+21);ctx.stroke();
+  // Bright threshold marker, not a barrier.
+  ctx.strokeStyle='#f2d388';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(entrance.x,lower);
+  ctx.lineTo(entrance.x+chamberWidth,lower);ctx.stroke();
+  ctx.textAlign='center';
+  ctx.fillStyle='#fff0c2';ctx.font='bold 11px DM Sans';
+  ctx.fillText('STOP IN LOCK',(entrance.x+far.x)/2,upper+Math.min(length*.55,87));
+  const entryLabel=project(LOCK.centreX,LOCK.startY+11);
+  if(entryLabel.y>0&&entryLabel.y<height){
+    ctx.fillStyle='#153c3bc9';ctx.fillRect(entryLabel.x-46,entryLabel.y-14,92,22);
+    ctx.fillStyle='#ffe0a4';ctx.font='bold 10px DM Sans';
+    ctx.fillText('OPEN ENTRANCE',entryLabel.x,entryLabel.y+1);
+  }
 }
 function waveStroke(points,opacity=1,lineWidth=1.5){
   if(points.length<2)return;
@@ -508,6 +571,29 @@ function drawWake(){
     }
   }
 }
+function drawGhost(){
+  if(!running||!ghostEnabled||!currentGhost)return;
+  const pose=sampleGhost(currentGhost,elapsed);
+  if(!pose)return;
+  const position=project(pose.x,pose.y);
+  const L=BOAT.length*scale,B=BOAT.beam*scale;
+  ctx.save();
+  ctx.translate(position.x,position.y);
+  ctx.rotate(pose.heading);
+  ctx.globalAlpha=.51;
+  // Distinct outline and bright cabin, clearly not a solid competing boat.
+  ctx.beginPath();ctx.moveTo(0,-L*.53);
+  ctx.quadraticCurveTo(B*.51,-L*.46,B*.51,-L*.3);
+  ctx.lineTo(B*.51,L*.47);ctx.quadraticCurveTo(0,L*.55,-B*.51,L*.47);
+  ctx.lineTo(-B*.51,-L*.3);ctx.quadraticCurveTo(-B*.51,-L*.46,0,-L*.53);
+  ctx.closePath();
+  ctx.fillStyle='#54e1d6';ctx.fill();
+  ctx.lineWidth=2.2;ctx.strokeStyle='#e2fff5';ctx.stroke();
+  ctx.fillStyle='#e5ffeb';ctx.fillRect(-B*.34,-L*.27,B*.68,L*.45);
+  ctx.strokeStyle='#10676e';ctx.lineWidth=1;
+  ctx.strokeRect(-B*.34,-L*.27,B*.68,L*.45);
+  ctx.restore();
+}
 function drawBoat(){
   const p=project(boat.x,boat.y);
   ctx.save();ctx.translate(p.x,p.y);ctx.rotate(boat.heading);
@@ -531,7 +617,7 @@ function render(){
   const targetX=boat.x,targetY=boat.y;
   camera.x+=(targetX-camera.x)*.075;camera.y+=(targetY-camera.y)*.075;
   ctx.clearRect(0,0,width,height);
-  drawCanal();drawWake();drawBoat();
+  drawCanal();drawWake();drawGhost();drawBoat();
 }
 function frame(now){
   if(!last)last=now;
