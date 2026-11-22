@@ -13,7 +13,7 @@ let boat, controls, elapsed, penalties, running=false, finished=false, paused=fa
 let messageTime=0, message='', lockHold=0, collisionCooldown=0, contactTotal=0, last=0, accumulator=0;
 let camera={x:0,y:0}, width=0,height=0,scale=5.4, clock=0;
 const STEP=1/60, MAX_DT=.05;
-const bridgeYs=[-175,-430];
+const bridgeYs=[-130,-275];
 let best=null;
 try{best=Number(localStorage.getItem('power-canal-best'))||null;}catch{}
 function formatTime(s){const m=Math.floor(s/60), secs=s-m*60;return String(m).padStart(2,'0')+':'+secs.toFixed(2).padStart(5,'0');}
@@ -21,7 +21,7 @@ function reset(showStart=false){
   boat=createBoat(centreAt(START_Y),START_Y,0);
   controls={throttle:0,tiller:0};elapsed=0;penalties=0;lockHold=0;
   contactTotal=0;collisionCooldown=0;running=!showStart;finished=false;paused=false;
-  camera={x:boat.x,y:boat.y-32}; accumulator=0;message='';messageTime=0;
+  camera={x:boat.x,y:boat.y}; accumulator=0;message='';messageTime=0;
   ui.finish.classList.add('is-hidden');ui.start.classList.toggle('is-hidden',!showStart);
   $('pauseButton').textContent='Ⅱ';renderControls();updateUI();
 }
@@ -257,7 +257,7 @@ function drawBoat(){
 }
 function render(){
   if(!width||!height)return;
-  const targetX=boat.x,targetY=boat.y-32;
+  const targetX=boat.x,targetY=boat.y;
   camera.x+=(targetX-camera.x)*.075;camera.y+=(targetY-camera.y)*.075;
   ctx.clearRect(0,0,width,height);
   drawCanal();drawWake();drawBoat();
