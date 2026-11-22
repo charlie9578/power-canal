@@ -31,20 +31,20 @@ Contact with the bank, a bridge, or the far lock gate slows your boat; significa
 
 ## First-pass physics
 
-The deterministic fixed-timestep model in `src/physics.js` includes:
+The fixed-timestep dynamics model in `src/physics.js` now uses a coupled **surge–sway–yaw** system with rigid-body and added-water inertia. It includes:
 
 - Boat mass, forward and reverse engine thrust, longitudinal linear/quadratic drag, and speed-dependent resistance.\n- Stylised V-shaped bow waves aligned to actual travel velocity, lingering world-space trailing wake, and throttle-dependent propeller wash that reverses direction in astern.
 - Lateral velocity and damping, rather than steering the heading vector directly.
-- A rudder response lag, flow-over-rudder turning force, low-speed prop-wash term, and yaw inertia/damping.
-- A hull-length-based boundary check for bank contact, bridge checks, and a full-hull lock finish.
+- Direct tiller-to-rudder steering (no artificial rudder delay), distributed cross-flow hull forces, propeller-enhanced rudder lift at low forward speed, weak reverse rudder action, and sway/yaw coupling.
+- Depth/channel-blockage-dependent resistance, approximate bank bow-pressure/stern-suction forces, and a hull-length-based boundary check for bank contact, bridge checks, and a full-hull lock finish.
 
-**Approximation warning:** The current drag, thrust, bank contact and rudder parameters are deliberately hand-tuned gameplay coefficients, not measured hydrodynamic performance. In particular, the shallow-water, wave-making, and passing-vessel suction models are future work.
+**Calibration warning:** This is a physics-structured but not yet instrument-calibrated model. The hull, rudder, thrust, drag and bank coefficients are estimates; the confinement and bank models are deliberately simplified, and interactions with *other boats* are future work. See [PHYSICS.md](PHYSICS.md) for equations, assumptions and right-half-plane pole analysis.
 
 ## Project layout
 
 - `index.html`: game HUD, overlays, left throttle and right tiller controls.
 - `style.css`: responsive portrait mobile layout.
-- `src/physics.js`: boat motion model.
+- `src/physics.js`: three-degree-of-freedom surge/sway/yaw model and linearized directional poles.\n- `PHYSICS.md`: engineering notes, model derivation and calibration plan.
 - `src/course.js`: fictional canal centreline, banks, bridges and lock geometry.
 - `src/main.js`: canvas rendering, collision/penalty rules, touch/keyboard input, simulation loop and timing.\n- `src/water.js`: movement-aligned, world-space wake samples and their lifetimes.\n- `src/throttle.js`: 11-position combined throttle and reverse lever.
 - `tests/physics.test.js`: smoke tests for key handling and finish geometry.
@@ -53,7 +53,7 @@ Run tests with `npm test` (requires modern Node.js; only the tests need Node).
 
 ## Planned next steps
 
-1. Playtest stepped throttle usability and the new water effects on actual phones; tune steering response, speed, stopping distance and penalty thresholds.
+1. Instrument and calibrate real narrowboat speed-versus-power, stopping, zigzag and turning response; validate handling on actual phones.
 2. Add a more physical canal cross-section: shallow-water drag and bank suction; refine the stylised bow/wake visuals.
 3. Add a second boat with approximation-based pressure interaction for overtaking.
 4. Add replay/ghost racing, multiple stages, and an optional steering-assist mode.
@@ -69,4 +69,4 @@ The stern wake is intentionally subtle: a shorter-lived, sparser and less opaque
 
 ## Deployment verification
 
-GitHub Pages hosts the game at https://charlie9578.github.io/power-canal/ . The HUD shows the build version (currently **v0.1.3**). Static CSS and JS links include a release-specific query string so a new deployment loads fresh game assets. If the old page is still cached, open https://charlie9578.github.io/power-canal/?v=20261122-3 to force a fresh document URL.
+GitHub Pages hosts the game at https://charlie9578.github.io/power-canal/ . The HUD shows the build version (currently **v0.2.0**). Static CSS and JS links include a release-specific query string so a new deployment loads fresh game assets. If the old page is still cached, open https://charlie9578.github.io/power-canal/?v=20261122-4 to force a fresh document URL.
