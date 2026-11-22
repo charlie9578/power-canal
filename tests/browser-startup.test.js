@@ -146,16 +146,16 @@ function boot(course){
     lockState=updateLockStop(boat,0,0,BOAT.length,BOAT.beam);
     updateUI();
   `,sandbox);
-  assert.equal(node('speedDisplay').textContent,'0.4',
+  assert.equal(node('speedDisplay').textContent,'0.45',
     'speedometer should display sideways drift, not zero');
-  assert.match(node('lockIndicatorText').textContent,/SLOW TO 0.4 MPH/);
+  assert.match(node('lockIndicatorText').textContent,/SLOW BELOW 0.18 MPH/);
   vm.runInContext(`
     boat.vx=0;boat.vy=-.1;boat.yawRate=0;
     lockState=updateLockStop(boat,.6,0,BOAT.length,BOAT.beam);
     updateUI();
   `,sandbox);
-  assert.match(node('lockIndicatorText').textContent,/HOLD STILL 50%/);
-  assert.equal(node('lockProgress').style.width,'50%');
+  assert.match(node('lockIndicatorText').textContent,/STOP FOR 2 SECONDS · 30%/);
+  assert.equal(node('lockProgress').style.width,'30%');
   // Exercise finish bookkeeping in the real entrypoint. The physics-based
   // end-to-end lock test is in navigation.test.js; here we call finish
   // directly to verify completion saves the best time and ghost replay.
