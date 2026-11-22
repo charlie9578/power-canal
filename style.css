@@ -193,3 +193,16 @@
   .lock-indicator{right:9px;bottom:15px;padding:7px 8px;width:54%}
   .lock-indicator strong{font-size:9px}
 }
+
+
+/* v0.4.2: no floating navigation caption over the playfield.
+   Docking guidance lives in the lower-right lock panel; routine hints
+   live in the control-deck footer, leaving the HUD unobscured. */
+.course-message{display:none}
+.conditions-chip{top:112px}
+@media(max-height:650px){.conditions-chip{top:112px}}
+@media(max-width:365px){
+  .conditions-chip{right:9px;max-width:70%;padding:5px 7px}
+  .conditions-chip strong{font-size:8px}
+  .conditions-chip span{font-size:9px}
+}
