@@ -127,11 +127,16 @@ export function checkBanks(b,length,beam){
   }
   return {depth,normalX};
 }
+// Accept a stopped boat anywhere in the chamber, with no centre target.
+// Full-sized hull corners are tested with 5 cm tolerance for the rounded bow.
 export function insideLock(b,length,beam){
-  const margin=.15;
-  return hullSamples(b,length,beam).every(p=>
-    p.y<LOCK.startY-margin && p.y>LOCK.endY+margin &&
-    Math.abs(p.x-LOCK.centreX)<LOCK.width/2-margin
+  const tolerance=.05;
+  return [-.5,.5].every(fore=>
+    [-.5,.5].every(side=>{
+      const p=pointOnHull(b,side*beam,fore*length);
+      return p.y<LOCK.startY+tolerance && p.y>LOCK.endY-tolerance &&
+        Math.abs(p.x-LOCK.centreX)<LOCK.width/2+tolerance;
+    })
   );
 }
 // Water conditions are fed directly to ITTC/Froude/Schijf resistance,
