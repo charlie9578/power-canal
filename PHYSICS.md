@@ -1,4 +1,4 @@
-# Power Canal physics model (v0.3.0)
+# Power Canal physics model (v0.3.1)
 
 ## Scope and confidence
 
@@ -165,3 +165,25 @@ Until validation, this is a *physics-informed prototype*, not a real narrowboat 
 ## v0.2.1 steering feel
 
 The rudder now has a short **finite manual sweep** without artificial transmission lag. Added yaw inertia was increased and crossflow damping reduced, producing more persistent yaw after releasing the tiller. This makes early countersteering important. These values remain gameplay-tuned estimates; physically measured rudder response, turning circles, and zigzag trials should determine eventual calibration. Default directional poles remain in the left half-plane.
+
+## v0.3.1 — experimental Waterway Lab
+
+The game now offers a second selectable course for comparing **identical boat controls and equipment** in different water conditions. Route selection changes only the canal centreline, bank geometry, material appearance, bridges, and lock coordinates: it does **not** alter the narrowboat's mass, engine, rudder, propeller or hydrodynamic coefficients.
+
+| Section | Nominal width | Nominal depth | Bank material |
+| --- | ---: | ---: | --- |
+| Open meadow | 16.5 m | 2.25 m | Natural |
+| Shallow narrows | 7.1 m | 0.98 m | Natural |
+| Deep basin | 18.5 m | 2.65 m | Natural |
+| Stone aqueduct | 7.4 m | 1.35 m | Stone trough |
+| Winding earth cut | 10.5 m | 1.05 m | Natural |
+| Brick cutting | 7.8 m | 1.55 m | Brick |
+| Lock approach | 14.8 m | 2.20 m | Stone |
+
+Channel width and depth blend over 24 m at zone boundaries to avoid discontinuous jumps in the hydrodynamic force. A small near-bank shoaling correction applies to the depth passed to the simulator. The aqueduct is drawn as an elevated masonry trough over a valley; **its elevation is cosmetic**. Physically, the model responds to the trough's reduced channel width and depth.
+
+The course uses smoothed Hermite spline knots for its S-bends, including a nearly straight aqueduct. `checkBanks()` and `canalEnvironmentAt()` use the *same* local channel geometry. Simulated bow/sway hydrodynamics already depend on nominal depth, width, proximity to banks and steering. The course is fictional and is intended for qualitative sensitivity testing, not to predict speeds on a particular real waterway.
+
+For a controlled comparison: hold the same throttle on the wide/deep section and on the shallow narrows, observe the speed and bow-wave intensity, then compare how much countersteering the narrow bends require. Run the original stage as the control.
+
+Future validation should account for canal cross-section (trapezoidal versus rectangular), bank roughness, sediment, asymmetric return flow, current, squat and air exposure of an aqueduct. Those effects are **not fully modelled** by the current simplified Schijf-proximity penalty.
