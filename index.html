@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#102b30" />
+  <meta name="description" content="Power Canal — a portrait-mode narrowboat precision racing game." />
+  <title>Power Canal — Bridge to Lock</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="game-shell">
+    <section class="playfield" id="playfield" aria-label="Canal race view">
+      <canvas id="gameCanvas" aria-label="Top-down canal with a steerable narrowboat"></canvas>
+      <div class="vignette" aria-hidden="true"></div>
+
+      <div class="hud">
+        <div class="hud-chip">
+          <span class="eyebrow">POWER CANAL / STAGE 01</span>
+          <strong>Bridge to Lock</strong>
+        </div>
+        <div class="hud-chip hud-time">
+          <span class="eyebrow">TIME</span>
+          <strong id="timeDisplay">00:00.00</strong>
+          <small id="penaltyDisplay">+00:00 penalty</small>
+        </div>
+      </div>
+      <div class="course-message" id="courseMessage" aria-live="polite">Follow the canal towards the lock</div>
+      <div class="speed-chip"><strong id="speedDisplay">0.0</strong><span>MPH</span></div>
+      <div class="feedback" id="feedback" aria-live="polite"></div>
+
+      <div class="modal-backdrop" id="startModal">
+        <div class="modal">
+          <div class="modal-emblem">🚤</div>
+          <span class="eyebrow">A NARROWBOAT TIME TRIAL</span>
+          <h1>POWER<br /><em>CANAL</em></h1>
+          <p>Anticipate the bends, clear the bridge and stop <strong>entirely inside the lock.</strong> Every hard collision adds time.</p>
+          <div class="modal-tip"><span>THROTTLE · LEFT</span><span>TILLER · RIGHT</span></div>
+          <p class="fine-print">Real tiller direction: push the handle left to turn the bow right. The boat takes time to respond.</p>
+          <button class="primary-button" id="startButton" type="button">START TIME TRIAL <span>↗</span></button>
+        </div>
+      </div>
+      <div class="modal-backdrop is-hidden" id="finishModal">
+        <div class="modal">
+          <div class="modal-emblem">🏁</div>
+          <span class="eyebrow">STAGE COMPLETE</span>
+          <h1>LOCKED<br /><em>IN.</em></h1>
+          <div class="results">
+            <div><span>Race time</span><strong id="resultTime">--:--.--</strong></div>
+            <div><span>Penalties</span><strong id="resultPenalty">+00:00</strong></div>
+            <div class="results-total"><span>Final time</span><strong id="resultTotal">--:--.--</strong></div>
+            <div><span>Personal best</span><strong id="resultBest">--:--.--</strong></div>
+          </div>
+          <p id="resultMessage">Nice run.</p>
+          <button class="primary-button" id="againButton" type="button">RACE AGAIN <span>↗</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="control-deck" aria-label="Narrowboat controls">
+      <div class="deck-heading">
+        <div><span class="deck-label">VESSEL / 48 FT NARROWBOAT</span><strong id="stateDisplay">READY · ENGINE IDLE</strong></div>
+        <div class="deck-actions">
+          <button id="pauseButton" type="button" aria-label="Pause or resume race">Ⅱ</button>
+          <button id="resetButton" type="button" aria-label="Restart race">↻</button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="control-card throttle-card">
+          <div class="card-title"><span>01</span><strong>THROTTLE</strong></div>
+          <div class="throttle-interface">
+            <div class="throttle-labels" aria-hidden="true"><span>AHEAD</span><span>NEUTRAL</span><span>ASTERN</span></div>
+            <div class="throttle-track" id="throttleTrack" role="slider" aria-label="Throttle, ahead and astern" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+              <div class="track-groove"></div>
+              <div class="track-neutral"></div>
+              <div class="throttle-thumb" id="throttleThumb"><span></span></div>
+            </div>
+            <strong class="control-readout" id="throttleReadout">N</strong>
+          </div>
+        </div>
+
+        <div class="control-card tiller-card">
+          <div class="card-title"><span>02</span><strong>TILLER</strong></div>
+          <div class="tiller-interface">
+            <div class="tiller-pad" id="tillerPad" role="slider" aria-label="Tiller position" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+              <div class="tiller-arc"></div>
+              <div class="tiller-centerline"></div>
+              <div class="tiller-stick" id="tillerStick"><div class="tiller-knob"></div></div>
+              <div class="tiller-pivot"></div>
+              <span class="tiller-port">PORT</span><span class="tiller-starboard">STBD</span>
+            </div>
+            <strong class="control-readout" id="tillerReadout">CENTRE</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="deck-footer"><span>ANTICIPATE THE TURN</span><span id="hintDisplay">STOP INSIDE THE LOCK</span></div>
+    </section>
+  </main>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
