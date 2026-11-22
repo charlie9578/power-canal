@@ -1,4 +1,4 @@
-# Power Canal physics model (v0.4.1)
+# Power Canal physics model (v0.4.3)
 
 ## Scope and confidence
 
@@ -211,3 +211,7 @@ Lock detection continues to use the entire 14.6 m × 2.08 m hull footprint in `i
 The new, separate `src/lock-stop.js` acceptance logic uses **speed over ground below 0.16 m/s**, **yaw rate below 0.040 rad/s**, and **1.2 seconds** of hold. Minor spikes up to 0.23 m/s or 0.060 rad/s subtract partial hold progress at 1.5× time rather than resetting it; substantial movement or leaving the chamber resets to zero. This is a game-specific *docking acceptance tolerance*, not an artificial hydrodynamic damping or speed limit. No force coefficients or rudder physics are changed.
 
 The speedometer now reports `hypot(vx,vy)` (ground speed), matching the finish condition rather than only the ahead velocity `u`. A near-lock indicator displays the whole-hull status, motion/turning blocker and hold progress. The complete course navigation regression now checks the same docking condition used in gameplay.
+
+## v0.4.3 — docking preference
+
+The lock finish now requires **full-hull containment** anywhere in the chamber plus **0.08 m/s maximum ground speed** continuously for **2 seconds**. Full-sized hull corners are checked, with a 5 cm geometric tolerance. No target at the lock centre and no separate yaw-rate gating are used; rotation matters only insofar as it causes a hull corner to cross the chamber boundary. Small speed fluctuations up to 0.105 m/s reduce accumulated hold progress; larger speeds reset it. The two-decimal speed readout near the lock clarifies the 0.18 mph limit. No changes are made to the hydrodynamic or steering model.
