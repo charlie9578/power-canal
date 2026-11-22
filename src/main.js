@@ -1,11 +1,11 @@
-import { resistanceComponents } from './hydrodynamics.js?v=20261122-15';
-import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from './ghost.js?v=20261122-15';
-import { drawFields, drawTowpath, drawStoneBridge } from './scenery.js?v=20261122-15';
-import { updateLockStop, LOCK_STOP } from './lock-stop.js?v=20261122-15';
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-15';
-import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-15';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-15';
-import { START_Y, LOCK, COURSES, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, checkObstacles, insideLock, pointOnHull, canalEnvironmentAt, waterwayAtPosition, technicalPath, technicalRouteProgress } from './course.js?v=20261122-15';
+import { resistanceComponents } from './hydrodynamics.js?v=20261122-16';
+import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from './ghost.js?v=20261122-16';
+import { drawFields, drawTowpath, drawStoneBridge } from './scenery.js?v=20261122-16';
+import { updateLockStop, LOCK_STOP, lockSpeedMph } from './lock-stop.js?v=20261122-16';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-16';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-16';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-16';
+import { START_Y, LOCK, COURSES, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, checkObstacles, insideLock, pointOnHull, canalEnvironmentAt, waterwayAtPosition, technicalPath, technicalRouteProgress } from './course.js?v=20261122-16';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
@@ -44,7 +44,7 @@ function readBest(){return readBestFor(selectedCourse);}
 let best=readBest();
 function renderCoursePicker(){
   const course=getActiveCourse();
-  $('stageNumber').textContent='POWER CANAL v0.5.1 / STAGE '+course.number;
+  $('stageNumber').textContent='POWER CANAL v0.5.2 / STAGE '+course.number;
   $('stageName').textContent=course.name;
   $('startDescription').textContent=course.description;
   $('homeProgress').textContent=COURSES.filter(c=>readBestFor(c.id)!==null).length+' / '+COURSES.length;
@@ -199,9 +199,8 @@ function simulate(dt){
     if(collisionCooldown<=0)addPenalty(10,'Lock gate impact');
   }
   appendGhostFrame(recordedFrames,elapsed,boat);
-  // A true full-hull lock finish still requires low ground speed and low
-  // yaw. Tiny residual drift now counts as settled, and brief borderline
-  // oscillations reduce progress rather than reset it every frame.
+  // Accept the entire hull anywhere in the lock after two seconds at the
+  // shown 0.18 mph speed; minor borderline motion pauses the countdown.
   lockState=updateLockStop(boat,lockHold,dt,BOAT.length,BOAT.beam);
   lockHold=lockState.hold;
   if(lockState.complete)finish();
@@ -214,7 +213,8 @@ function updateUI(){
   const speed=Math.hypot(boat.vx,boat.vy);
   // Two decimals near the lock expose the precise 0.18 mph threshold;
   // the usual one-decimal display remains less busy while cruising.
-  ui.speed.textContent=(speed*2.23694).toFixed(boat.y<LOCK.startY+95?2:1);
+  ui.speed.textContent=boat.y<LOCK.startY+95
+    ? lockSpeedMph(speed).toFixed(2):(speed*2.23694).toFixed(1);
   ui.state.textContent=paused?'PAUSED':boat.throttle<-.05?'ASTERN · '+Math.round(-boat.throttle*100)+'%':boat.throttle>.05?'AHEAD · '+Math.round(boat.throttle*100)+'%':'NEUTRAL · COASTING';
   const section=waterwayAtPosition(boat);
   ui.waterLabel.textContent=section.name;
@@ -234,15 +234,17 @@ function updateUI(){
   if(nearLock && boat.y<LOCK.startY+BOAT.length*.65+4){
     switch(docking.status){
       case 'entrance':
-        label='MOVE FORWARD · STERN STILL OUTSIDE';break;
+        label='STERN '+(-docking.clearance.entrance).toFixed(1)+' M OUT · MOVE AHEAD';break;
       case 'far-gate':
-        label='TOO FAR FORWARD · REVERSE';break;
+        label='BOW '+(-docking.clearance.farGate).toFixed(1)+' M PAST GATE · REVERSE';break;
       case 'side-wall':
-        label='KEEP ENTIRE BOAT INSIDE LOCK WALLS';break;
+        label='HULL OUTSIDE WALL · MOVE INWARDS';break;
       case 'moving':
-        label='SLOW BELOW 0.18 MPH · NOW '+(docking.speed*2.23694).toFixed(2);break;
+        label='INSIDE LOCK · SLOW TO 0.18 MPH · NOW '+docking.speedShown.toFixed(2);break;
+      case 'settling':
+        label='TIMER PAUSED · SLOW TO 0.18 MPH';break;
       case 'holding':
-        label='STOP FOR 2 SECONDS · '+percent+'%';break;
+        label='LOCK STOP · '+docking.remaining.toFixed(1)+' S REMAINING';break;
       case 'complete':
         label='LOCK SECURED';break;
     }
@@ -590,7 +592,7 @@ function drawLock(){
   const lower=Math.max(entrance.y,far.y);
   if(upper>height+80||lower< -80)return;
   const chamberWidth=(right-left)*scale,length=lower-upper;
-  const onTarget=insideLock(boat,BOAT.length,BOAT.beam);
+  const onTarget=insideLock(boat,BOAT.length,BOAT.beam,LOCK_STOP.enterTolerance);
   // Distinct, darker chamber with broad cut-stone sides.
   ctx.fillStyle=onTarget?'#427f83':'#488491';
   ctx.fillRect(entrance.x,upper,chamberWidth,length);
