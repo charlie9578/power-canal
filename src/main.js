@@ -1,8 +1,8 @@
-import { resistanceComponents } from './hydrodynamics.js?v=20261122-8';
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-8';
-import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-8';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-8';
-import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-8';
+import { resistanceComponents } from './hydrodynamics.js?v=20261122-9';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-9';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-9';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-9';
+import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-9';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
@@ -31,7 +31,7 @@ function readBest(){
 let best=readBest();
 function renderCoursePicker(){
   const course=getActiveCourse();
-  $('stageNumber').textContent='POWER CANAL v0.3.2 / STAGE '+course.number;
+  $('stageNumber').textContent='POWER CANAL v0.3.3 / STAGE '+course.number;
   $('stageName').textContent=course.name;
   $('startDescription').textContent=course.description;
   for(const button of document.querySelectorAll('[data-course]')){
@@ -85,12 +85,19 @@ function simulate(dt){
   // than a bounce off an invisible rectangle.
   const bank=checkBanks(boat,BOAT.length,BOAT.beam);
   if(bank.depth>0){
-    boat.x+=bank.normalX*Math.min(bank.depth*0.25,0.5);
-    boat.vx*=Math.exp(-dt*(1.4+bank.depth*3.2));
-    boat.vy*=Math.exp(-dt*(0.8+bank.depth*2.4));
-    boat.yawRate*=Math.exp(-dt*1.8);
-    contactTotal+=dt;
-    if(bank.depth>0.35&&collisionCooldown<=0 && Math.hypot(prev.vx,prev.vy)>0.45){
+    // A few centimetres of collision-hull penetration are sampling noise,
+    // especially at bends: nudge the hull clear without cancelling its speed.
+    // Larger impacts still progressively dissipate motion and incur penalties.
+    boat.x+=bank.normalX*Math.min(bank.depth*.25,.5);
+    const severity=clamp((bank.depth-.035)/.30,0,1);
+    if(severity>0){
+      const contactDrag=2.4*severity;
+      boat.vx*=Math.exp(-dt*contactDrag);
+      boat.vy*=Math.exp(-dt*contactDrag);
+      boat.yawRate*=Math.exp(-dt*.8*severity);
+      contactTotal+=dt;
+    }
+    if(bank.depth>.35&&collisionCooldown<=0 && Math.hypot(prev.vx,prev.vy)>.45){
       addPenalty(bank.depth>1.05?5:2,bank.depth>1.05?'Bank impact':'Bank scrape');
     }
   }else{contactTotal=0;}
