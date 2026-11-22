@@ -1,8 +1,8 @@
-import { resistanceComponents } from './hydrodynamics.js?v=20261122-6';
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-6';
-import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-6';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-6';
-import { WIDTH, START_Y, LOCK, centreAt, halfWidthAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-6';
+import { resistanceComponents } from './hydrodynamics.js?v=20261122-7';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-7';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-7';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-7';
+import { START_Y, LOCK, COURSES, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-7';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
@@ -17,17 +17,37 @@ let messageTime=0, message='', lockHold=0, collisionCooldown=0, contactTotal=0, 
 let camera={x:0,y:0}, width=0,height=0,scale=5.4, clock=0;
 let wakeMarks=[],lastWakeAt=0;
 const STEP=1/60, MAX_DT=.05;
-const bridgeYs=[-130,-275];
-let best=null;
-try{best=Number(localStorage.getItem('power-canal-best'))||null;}catch{}
+let selectedCourse=new URLSearchParams(window.location.search).get('course')==='test'?'test':'classic';
+setActiveCourse(selectedCourse);
+function bestKey(){return 'power-canal-best-'+selectedCourse;}
+function readBest(){
+  try {
+    const stored=localStorage.getItem(bestKey()) ??
+      (selectedCourse==='classic'?localStorage.getItem('power-canal-best'):null);
+    return stored===null?null:Number(stored)||null;
+  }catch{return null;}
+}
+let best=readBest();
+function renderCoursePicker(){
+  const course=getActiveCourse();
+  $('stageNumber').textContent='POWER CANAL v0.3.1 / STAGE '+course.number;
+  $('stageName').textContent=course.name;
+  $('startDescription').textContent=course.description;
+  for(const button of document.querySelectorAll('[data-course]')){
+    const selected=button.dataset.course===selectedCourse;
+    button.classList.toggle('is-selected',selected);
+    button.setAttribute('aria-pressed',String(selected));
+  }
+}
 function formatTime(s){const m=Math.floor(s/60), secs=s-m*60;return String(m).padStart(2,'0')+':'+secs.toFixed(2).padStart(5,'0');}
 function reset(showStart=false){
+  setActiveCourse(selectedCourse);best=readBest();
   boat=createBoat(centreAt(START_Y),START_Y,0);
   controls={throttle:0,tiller:0};wakeMarks=[];lastWakeAt=0;clock=0;elapsed=0;penalties=0;lockHold=0;
   contactTotal=0;collisionCooldown=0;running=!showStart;finished=false;paused=false;
   camera={x:boat.x,y:boat.y}; accumulator=0;message='';messageTime=0;
   ui.finish.classList.add('is-hidden');ui.start.classList.toggle('is-hidden',!showStart);
-  $('pauseButton').textContent='Ⅱ';renderControls();updateUI();
+  $('pauseButton').textContent='Ⅱ';renderCoursePicker();renderControls();updateUI();
 }
 function announce(text,seconds=1.8){message=text;messageTime=seconds;}
 function addPenalty(seconds,label){
@@ -37,7 +57,7 @@ function finish(){
   running=false;finished=true;controls.throttle=0;renderControls();
   const total=elapsed+penalties;
   let newBest=false;
-  if(best===null || total<best){best=total;newBest=true;try{localStorage.setItem('power-canal-best',String(best));}catch{}}
+  if(best===null || total<best){best=total;newBest=true;try{localStorage.setItem(bestKey(),String(best));}catch{}}
   $('resultTime').textContent=formatTime(elapsed);
   $('resultPenalty').textContent='+'+penalties+'s';
   $('resultTotal').textContent=formatTime(total);
@@ -74,13 +94,14 @@ function simulate(dt){
     }
   }else{contactTotal=0;}
   // Bridges are narrow passages: test the entire hull while crossing.
-  for(const by of bridgeYs){
+  for(const bridge of getActiveCourse().bridges){
+    const by=bridge.y;
     const passing=Math.abs(boat.y-by)<BOAT.length*.65+2.3;
     if(!passing)continue;
     let hit=false;
     for(const f of [-.5,0,.5]){
       const p=pointOnHull(boat,0,f*BOAT.length);
-      if(Math.abs(p.y-by)<2.4 && Math.abs(p.x-centreAt(by))>2.1-BOAT.beam/2)hit=true;
+      if(Math.abs(p.y-by)<2.4 && Math.abs(p.x-centreAt(by))>bridge.opening/2-BOAT.beam/2)hit=true;
     }
     if(hit){
       boat.vx*=Math.exp(-dt*3);boat.vy*=Math.exp(-dt*5);
@@ -103,12 +124,15 @@ function updateUI(){
   ui.time.textContent=formatTime(elapsed);ui.penalty.textContent='+'+String(penalties).padStart(2,'0')+'s penalty';
   ui.speed.textContent=(Math.abs(boat.forwardSpeed)*2.23694).toFixed(1);
   ui.state.textContent=paused?'PAUSED':boat.throttle<-.05?'ASTERN · '+Math.round(-boat.throttle*100)+'%':boat.throttle>.05?'AHEAD · '+Math.round(boat.throttle*100)+'%':'NEUTRAL · COASTING';
+  const section=waterwayAt(boat.y);
+  ui.waterLabel.textContent=section.name;
+  ui.waterInfo.textContent='DEPTH '+section.depth.toFixed(2)+'m · WIDTH '+section.width.toFixed(1)+'m';
   const distance=boat.y-LOCK.startY;
   if(boat.y<LOCK.startY+22){
     ui.course.textContent=insideLock(boat,BOAT.length,BOAT.beam)?'HOLD STILL IN THE LOCK '+Math.round(lockHold/1.4*100)+'%':'ENTER LOCK · STOP INSIDE';
     ui.hint.textContent='USE REVERSE TO BRAKE';
   }else if(distance<95){ui.course.textContent='LOCK AHEAD · PREPARE TO STOP';ui.hint.textContent='SLOW EARLY';}
-  else{ui.course.textContent='FOLLOW THE CANAL · WATCH YOUR STERN';ui.hint.textContent='STOP INSIDE THE LOCK';}
+  else{ui.course.textContent=selectedCourse==='test'?'COMPARE WATER CONDITIONS · WATCH YOUR STERN':'FOLLOW THE CANAL · WATCH YOUR STERN';ui.hint.textContent=selectedCourse==='test'?'WATCH DEPTH & WIDTH':'STOP INSIDE THE LOCK';}
   ui.feedback.textContent=messageTime>0?message:paused?'PAUSED':'';
   renderTiller();
 }
@@ -173,7 +197,15 @@ ui.throttleTrack.addEventListener('keydown',e=>{
   }
 });
 ui.tillerPad.addEventListener('keydown',e=>{e.stopPropagation();arrowStep(e,'tiller',.08);});
+for(const button of document.querySelectorAll('[data-course]')){
+  button.addEventListener('click',()=>{
+    selectedCourse=button.dataset.course;
+    reset(true);
+  });
+}
 $('startButton').addEventListener('click',()=>reset(false));
+$('chooseRouteButton').addEventListener('click',()=>reset(true));
+$('courseButton').addEventListener('click',()=>reset(true));
 $('againButton').addEventListener('click',()=>reset(false));
 $('resetButton').addEventListener('click',()=>reset(false));
 $('pauseButton').addEventListener('click',()=>{
@@ -199,44 +231,133 @@ function canalStrip(start,end,offset){
   points.push(project(centreAt(end)+offset*halfWidthAt(end),end));
   return points;
 }
+function drawAqueductDeck(low,high){
+  const aqueduct=getActiveCourse().aqueduct;
+  if(!aqueduct)return;
+  const begin=Math.max(low,aqueduct.bottom),end=Math.min(high,aqueduct.top);
+  if(begin>=end)return;
+  // The ravine and crossing stream are below the raised stone trough.
+  const top=project(0,aqueduct.top),bottom=project(0,aqueduct.bottom);
+  ctx.fillStyle='#738c83';ctx.fillRect(0,Math.min(top.y,bottom.y),width,Math.abs(top.y-bottom.y));
+  const streamCentre=(aqueduct.top+aqueduct.bottom)/2;
+  const stream=project(0,streamCentre);
+  ctx.fillStyle='#4b8396';ctx.fillRect(0,stream.y-9*scale,width,18*scale);
+  ctx.strokeStyle='#a1c2bb';ctx.lineWidth=2;
+  for(const t of [-5,0,5]){
+    ctx.beginPath();ctx.moveTo(0,stream.y+t*scale);
+    ctx.lineTo(width,stream.y+(t+1)*scale);ctx.stroke();
+  }
+  const left=[],right=[];
+  for(let y=begin;y<=end;y+=2){
+    left.push(project(centreAt(y)-halfWidthAt(y)-3.3,y));
+    right.push(project(centreAt(y)+halfWidthAt(y)+3.3,y));
+  }
+  left.push(project(centreAt(end)-halfWidthAt(end)-3.3,end));
+  right.push(project(centreAt(end)+halfWidthAt(end)+3.3,end));
+  polygon([...left,...right.reverse()],'#b9ae9b','#71695d',4);
+  // Repeated projecting shadows/pier tops make the trough legible from above.
+  for(let y=-328;y<=-248;y+=15){
+    if(y<begin||y>end)continue;
+    const l=project(centreAt(y)-halfWidthAt(y)-3.1,y);
+    const r=project(centreAt(y)+halfWidthAt(y)+3.1,y);
+    ctx.strokeStyle='#81766b';ctx.lineWidth=3;
+    for(const side of [l,r]){
+      ctx.beginPath();ctx.moveTo(side.x-4,side.y-8);ctx.lineTo(side.x+4,side.y+8);ctx.stroke();
+    }
+  }
+}
 function drawCanal(){
-  ctx.fillStyle='#c5d4ae';ctx.fillRect(0,0,width,height);
+  ctx.fillStyle=getActiveCourse().id==='test'?'#b6c9a4':'#c5d4ae';
+  ctx.fillRect(0,0,width,height);
   const ya=camera.y-(height/scale),yb=camera.y+(height/scale);
   const low=Math.floor(ya/2)*2,high=Math.ceil(yb/2)*2;
+  drawAqueductDeck(low,high);
   const left=canalStrip(low,high,-1),right=canalStrip(low,high,1).reverse();
-  polygon([...left,...right],'#75aebb','#a2c0a4',8);
-  // Water ripple patterns follow the course; small curves make the water feel alive.
-  ctx.strokeStyle='#c3e5db66';ctx.lineWidth=1;
+  polygon([...left,...right],'#75aebb',null);
+  // Individual sections show deep-water blue versus pale/shallow turquoise.
+  // The same measured width/depth is passed to the actual resistance model.
+  for(let y=low;y<high;y+=2){
+    const next=Math.min(y+2,high),a=waterwayAt(y),b=waterwayAt(next);
+    const depth=(a.depth+b.depth)/2;
+    const deep=clamp((depth-.85)/1.9,0,1);
+    const r=Math.round(128-50*deep),g=Math.round(180-29*deep),blue=Math.round(171+2*deep);
+    const color=a.bank==='aqueduct'?'#69a7b4':'rgb('+r+','+g+','+blue+')';
+    polygon([
+      project(centreAt(y)-a.width/2,y),project(centreAt(y)+a.width/2,y),
+      project(centreAt(next)+b.width/2,next),project(centreAt(next)-b.width/2,next)
+    ],color,null);
+    for(const side of [-1,1]){
+      const p=project(centreAt(y)+side*a.width/2,y);
+      const q=project(centreAt(next)+side*b.width/2,next);
+      const masonry=a.bank!=='natural';
+      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);
+      ctx.lineCap='butt';ctx.lineWidth=masonry?7:8;
+      ctx.strokeStyle=a.bank==='brick'?'#a17c63':
+        a.bank==='stone'||a.bank==='aqueduct'?'#c5b79e':'#a5c5a1';
+      ctx.stroke();
+      if(masonry){
+        ctx.lineWidth=2;ctx.strokeStyle=a.bank==='brick'?'#624e44':'#807867';
+        ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();
+        if(Math.floor(y/7)!==Math.floor(next/7)){
+          const n=side*3.5;
+          ctx.lineWidth=1;ctx.strokeStyle=a.bank==='brick'?'#dec5a1':'#eee0c4';
+          ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+n,p.y-3);ctx.stroke();
+        }
+      }
+    }
+  }
+  // Surface wave marks distinguish water motion without disguising width.
+  ctx.strokeStyle='#e2f5e366';ctx.lineWidth=1;
   for(let y=low;y<high;y+=8){
     const centre=centreAt(y),half=halfWidthAt(y);
     for(const side of [-.58,.42]){
       const p=project(centre+half*side,y);
       const sway=Math.sin(y*.33+clock*1.5)*3;
-      ctx.beginPath();ctx.moveTo(p.x-7,p.y+sway);ctx.quadraticCurveTo(p.x,p.y-3+sway,p.x+8,p.y+sway);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(p.x-7,p.y+sway);
+      ctx.quadraticCurveTo(p.x,p.y-3+sway,p.x+8,p.y+sway);ctx.stroke();
     }
   }
-  // Scattered repeatable towpath detailing.
+  // Towpath plants grow along natural banks, not on brick or aqueduct walls.
   for(let y=Math.floor(low/17)*17;y<high;y+=17){
+    if(waterwayAt(y).bank!=='natural')continue;
     for(const side of [-1,1]){
       const p=project(centreAt(y)+side*(halfWidthAt(y)+3.3),y);
       const seed=Math.sin(y*14.163+side*67)*43758.5;
       const v=seed-Math.floor(seed);
       if(v>.23){
-        ctx.fillStyle=v>.8?'#6a986a':'#90b785';ctx.beginPath();ctx.ellipse(p.x,p.y,6+v*5,8+v*6,.4,0,Math.PI*2);ctx.fill();
-        ctx.fillStyle='#b3c99b';ctx.beginPath();ctx.arc(p.x-2,p.y-2,2+v*2,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle=v>.8?'#6a986a':'#90b785';ctx.beginPath();
+        ctx.ellipse(p.x,p.y,6+v*5,8+v*6,.4,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#b3c99b';ctx.beginPath();
+        ctx.arc(p.x-2,p.y-2,2+v*2,0,Math.PI*2);ctx.fill();
       }
     }
   }
-  // Bridges are drawn under the boat for readability.
-  for(const y of bridgeYs){
-    const p=project(centreAt(y),y);
+  // Subtle in-world transition markers reinforce the changes in the HUD.
+  if(getActiveCourse().zones){
+    for(const zone of getActiveCourse().zones){
+      const y=(zone.top+zone.bottom)/2;
+      if(y<low||y>high)continue;
+      const bankX=centreAt(y)+halfWidthAt(y)+3.8;
+      const mark=project(bankX,y);
+      ctx.save();ctx.translate(mark.x,mark.y);
+      ctx.fillStyle='#173c3bc9';ctx.fillRect(-5,-11,116,24);
+      ctx.fillStyle='#e6ebd6';ctx.font='bold 9px DM Sans';ctx.textAlign='left';
+      ctx.fillText(zone.bank==='aqueduct'?'AQUEDUCT':zone.name.replace(' · DEEP & WIDE',''),1,4);
+      ctx.restore();
+    }
+  }
+  // Original bridges and additional test bridge have their own clearances.
+  for(const bridge of getActiveCourse().bridges){
+    const y=bridge.y,p=project(centreAt(y),y);
     if(p.y< -50||p.y>height+50)continue;
     ctx.save();ctx.translate(p.x,p.y);
     ctx.fillStyle='#8b7d67';ctx.fillRect(-width,-2.8*scale,width*2,5.6*scale);
     ctx.fillStyle='#c9bca3';ctx.fillRect(-width,-2.8*scale,width*2,7);
     ctx.fillRect(-width,2.8*scale-7,width*2,7);
-    ctx.fillStyle='#76a8ac';ctx.fillRect(-2.25*scale,-2.8*scale,4.5*scale,5.6*scale);
-    ctx.strokeStyle='#e3d7b9';ctx.lineWidth=3;ctx.strokeRect(-2.25*scale,-2.8*scale,4.5*scale,5.6*scale);
+    ctx.fillStyle='#76a8ac';
+    ctx.fillRect(-bridge.opening*scale/2,-2.8*scale,bridge.opening*scale,5.6*scale);
+    ctx.strokeStyle='#e3d7b9';ctx.lineWidth=3;
+    ctx.strokeRect(-bridge.opening*scale/2,-2.8*scale,bridge.opening*scale,5.6*scale);
     ctx.restore();
   }
   drawLock();
