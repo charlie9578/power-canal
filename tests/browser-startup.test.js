@@ -97,7 +97,7 @@ function boot(course){
   assert.match(node('waterInfo').textContent,/DEPTH.*WIDTH/);
   assert.equal(node('stageName').textContent,course==='technical'?'The Bridge & Bend':course==='test'?'The Waterway Lab':'Bridge to Lock');
   assert.equal(node('hintDisplay').textContent,
-    course==='technical'?'WINDING HOLE AHEAD':course==='test'?'WATCH DEPTH & WIDTH':'WATCH YOUR STERN',
+    course==='technical'?'STONE BRIDGE AHEAD':course==='test'?'WATCH DEPTH & WIDTH':'WATCH YOUR STERN',
     'cruising hints should use unobstructed deck footer');
   assert.equal(node('lockIndicator').classList.contains('is-hidden'),true,
     'dock guidance only appears at the lock');
