@@ -1,8 +1,10 @@
-import { resistanceComponents } from './hydrodynamics.js?v=20261122-9';
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-9';
-import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-9';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-9';
-import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-9';
+import { resistanceComponents } from './hydrodynamics.js?v=20261122-10';
+import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from './ghost.js?v=20261122-10';
+import { drawFields, drawTowpath, drawStoneBridge } from './scenery.js?v=20261122-10';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-10';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-10';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-10';
+import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-10';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
@@ -11,29 +13,42 @@ const ui={
   speed:$('speedDisplay'), state:$('stateDisplay'), feedback:$('feedback'), course:$('courseMessage'),
   throttleTrack:$('throttleTrack'), throttleThumb:$('throttleThumb'),
   tillerPad:$('tillerPad'), tillerStick:$('tillerStick'), tillerReadout:$('tillerReadout'), hint:$('hintDisplay'),
-  waterLabel:$('waterLabel'), waterInfo:$('waterInfo')
+  waterLabel:$('waterLabel'), waterInfo:$('waterInfo'), ghostChip:$('ghostChip')
 };
 let boat, controls, elapsed, penalties, running=false, finished=false, paused=false;
 let messageTime=0, message='', lockHold=0, collisionCooldown=0, contactTotal=0, last=0, accumulator=0;
 let camera={x:0,y:0}, width=0,height=0,scale=5.4, clock=0;
 let wakeMarks=[],lastWakeAt=0;
+let recordedFrames=[],currentGhost=null,ghostEnabled=true;
 const STEP=1/60, MAX_DT=.05;
 let selectedCourse=new URLSearchParams(window.location.search).get('course')==='test'?'test':'classic';
 setActiveCourse(selectedCourse);
-function bestKey(){return 'power-canal-best-'+selectedCourse;}
-function readBest(){
-  try {
-    const stored=localStorage.getItem(bestKey()) ??
-      (selectedCourse==='classic'?localStorage.getItem('power-canal-best'):null);
-    return stored===null?null:Number(stored)||null;
+function bestKey(courseId=selectedCourse){return 'power-canal-best-'+courseId;}
+function readBestFor(courseId){
+  try{
+    const stored=localStorage.getItem(bestKey(courseId)) ??
+      (courseId==='classic'?localStorage.getItem('power-canal-best'):null);
+    const value=Number(stored);
+    return stored!==null&&Number.isFinite(value)&&value>0?value:null;
   }catch{return null;}
 }
+function readBest(){return readBestFor(selectedCourse);}
 let best=readBest();
 function renderCoursePicker(){
   const course=getActiveCourse();
-  $('stageNumber').textContent='POWER CANAL v0.3.3 / STAGE '+course.number;
+  $('stageNumber').textContent='POWER CANAL v0.4.0 / STAGE '+course.number;
   $('stageName').textContent=course.name;
   $('startDescription').textContent=course.description;
+  $('homeProgress').textContent=['classic','test'].filter(id=>readBestFor(id)!==null).length+' / 2';
+  $('homeSelectedBest').textContent=best===null?'--:--.--':formatTime(best);
+  for(const [id,labelId] of [['classic','stageBestClassic'],['test','stageBestTest']]){
+    const time=readBestFor(id);
+    $(labelId).textContent=time===null?'NOT COMPLETED':'BEST '+formatTime(time);
+  }
+  const replay=currentGhost;
+  $('homeGhostStatus').textContent=replay
+    ? '◇ Replay ghost ready · '+formatTime(replay.score)+' (best captured run)'
+    : '◇ A finished run will create a replay ghost for this stage.';
   for(const button of document.querySelectorAll('[data-course]')){
     const selected=button.dataset.course===selectedCourse;
     button.classList.toggle('is-selected',selected);
@@ -44,10 +59,15 @@ function formatTime(s){const m=Math.floor(s/60), secs=s-m*60;return String(m).pa
 function reset(showStart=false){
   setActiveCourse(selectedCourse);best=readBest();
   boat=createBoat(centreAt(START_Y),START_Y,0);
+  currentGhost=readGhost(localStorage,selectedCourse);
+  recordedFrames=[];
+  appendGhostFrame(recordedFrames,0,boat,true);
   controls={throttle:0,tiller:0};wakeMarks=[];lastWakeAt=0;clock=0;elapsed=0;penalties=0;lockHold=0;
   contactTotal=0;collisionCooldown=0;running=!showStart;finished=false;paused=false;
   camera={x:boat.x,y:boat.y}; accumulator=0;message='';messageTime=0;
   ui.finish.classList.add('is-hidden');ui.start.classList.toggle('is-hidden',!showStart);
+  $('gameShell').classList.toggle('is-home',showStart);
+  $('gameShell').classList.remove('is-finished');
   $('pauseButton').textContent='Ⅱ';renderCoursePicker();renderControls();updateUI();
 }
 function announce(text,seconds=1.8){message=text;messageTime=seconds;}
@@ -55,15 +75,34 @@ function addPenalty(seconds,label){
   penalties+=seconds;collisionCooldown=1.15;announce(label+'  +'+seconds+'s',2.2);
 }
 function finish(){
-  running=false;finished=true;controls.throttle=0;renderControls();
+  running=false;finished=true;controls.throttle=0;
   const total=elapsed+penalties;
   let newBest=false;
-  if(best===null || total<best){best=total;newBest=true;try{localStorage.setItem(bestKey(),String(best));}catch{}}
+  if(best===null || total<best){
+    best=total;newBest=true;
+    try{localStorage.setItem(bestKey(),String(best));}catch{}
+  }
+  // The score includes collision penalties; replay poses follow elapsed
+  // *racing* time. The ghost is saved only for a completed lock finish.
+  appendGhostFrame(recordedFrames,elapsed,boat,true);
+  const candidate=makeGhost(selectedCourse,total,elapsed,recordedFrames);
+  let savedReplay=false;
+  if(candidate&&shouldReplaceGhost(currentGhost,total)){
+    savedReplay=saveGhost(localStorage,candidate);
+    if(savedReplay)currentGhost=candidate;
+  }
   $('resultTime').textContent=formatTime(elapsed);
   $('resultPenalty').textContent='+'+penalties+'s';
   $('resultTotal').textContent=formatTime(total);
   $('resultBest').textContent=formatTime(best);
-  $('resultMessage').textContent=(penalties===0?'Clean run! ':'')+(newBest?'New personal best!':'Beat your best by anticipating the bends.');
+  $('resultMessage').textContent=(penalties===0?'Clean run! ':'')+
+    (newBest?'New personal best!':'Beat your best by anticipating the bends.');
+  $('resultGhost').textContent=savedReplay
+    ? '◇ New course ghost recorded — race against this run next time.'
+    : currentGhost?'◇ Replay your saved ghost on the next attempt.'
+    : '◇ Replay recording unavailable. Your time has still been recorded.';
+  renderControls();
+  $('gameShell').classList.add('is-finished');
   ui.finish.classList.remove('is-hidden');
 }
 function simulate(dt){
@@ -123,6 +162,7 @@ function simulate(dt){
     boat.vy=Math.max(0,boat.vy)*0.25;
     if(collisionCooldown<=0)addPenalty(10,'Lock gate impact');
   }
+  appendGhostFrame(recordedFrames,elapsed,boat);
   // Finish is positional and physical, not just reaching a checkpoint.
   if(insideLock(boat,BOAT.length,BOAT.beam) && Math.hypot(boat.vx,boat.vy)<.08 && Math.abs(boat.yawRate)<.025){
     lockHold+=dt;if(lockHold>1.4)finish();
@@ -142,6 +182,9 @@ function updateUI(){
   }else if(distance<95){ui.course.textContent='LOCK AHEAD · PREPARE TO STOP';ui.hint.textContent='SLOW EARLY';}
   else{ui.course.textContent=selectedCourse==='test'?'COMPARE WATER CONDITIONS · WATCH YOUR STERN':'FOLLOW THE CANAL · WATCH YOUR STERN';ui.hint.textContent=selectedCourse==='test'?'WATCH DEPTH & WIDTH':'STOP INSIDE THE LOCK';}
   ui.feedback.textContent=messageTime>0?message:paused?'PAUSED':'';
+  const visible=Boolean(currentGhost&&ghostEnabled&&running&&sampleGhost(currentGhost,elapsed));
+  ui.ghostChip.classList.toggle('is-hidden',!visible);
+  if(visible)$('ghostRunTime').textContent=formatTime(currentGhost.score);
   renderTiller();
 }
 function setThrottleNotch(notch){
@@ -161,6 +204,10 @@ function renderControls(){
   ui.throttleThumb.style.top=positionForNotch(notch)+'%';
   ui.throttleTrack.setAttribute('aria-valuenow',String(notch));
   ui.throttleTrack.setAttribute('aria-valuetext',labelForNotch(notch));
+  const toggle=$('ghostToggle');
+  toggle.setAttribute('aria-pressed',String(ghostEnabled));
+  toggle.disabled=!currentGhost;
+  toggle.title=currentGhost?'Toggle best captured ghost':'No recorded ghost for this stage yet';
   renderTiller();
 }
 function trackPointer(element,compute,setter){
@@ -194,6 +241,7 @@ function keyInput(e){
   if(d){e.preventDefault();controls[d[0]]=clamp(controls[d[0]]+d[1],-1,1);renderControls();}
   if(e.code==='Space'){e.preventDefault();controls.throttle=0;renderControls();}
   if(e.key.toLowerCase()==='c'){controls.tiller=0;renderControls();}
+  if(e.key.toLowerCase()==='g'&&currentGhost){ghostEnabled=!ghostEnabled;renderControls();}
 }
 document.addEventListener('keydown',keyInput);
 function arrowStep(e,control,step){if(['ArrowUp','ArrowRight'].includes(e.key)){e.preventDefault();controls[control]=clamp(controls[control]+step,-1,1);renderControls();}if(['ArrowDown','ArrowLeft'].includes(e.key)){e.preventDefault();controls[control]=clamp(controls[control]-step,-1,1);renderControls();}}
@@ -214,6 +262,10 @@ for(const button of document.querySelectorAll('[data-course]')){
 $('startButton').addEventListener('click',()=>reset(false));
 $('chooseRouteButton').addEventListener('click',()=>reset(true));
 $('courseButton').addEventListener('click',()=>reset(true));
+$('ghostToggle').addEventListener('click',()=>{
+  if(!currentGhost)return;
+  ghostEnabled=!ghostEnabled;renderControls();updateUI();
+});
 $('againButton').addEventListener('click',()=>reset(false));
 $('resetButton').addEventListener('click',()=>reset(false));
 $('pauseButton').addEventListener('click',()=>{
@@ -279,6 +331,8 @@ function drawCanal(){
   ctx.fillRect(0,0,width,height);
   const ya=camera.y-(height/scale),yb=camera.y+(height/scale);
   const low=Math.floor(ya/2)*2,high=Math.ceil(yb/2)*2;
+  drawFields(ctx,{low,high,project,centreAt,halfWidthAt,
+    courseId:getActiveCourse().id});
   drawAqueductDeck(low,high);
   const left=canalStrip(low,high,-1),right=canalStrip(low,high,1).reverse();
   polygon([...left,...right],'#75aebb',null);
@@ -314,6 +368,7 @@ function drawCanal(){
       }
     }
   }
+  drawTowpath(ctx,{low,high,project,centreAt,waterwayAt,scale});
   // Surface wave marks distinguish water motion without disguising width.
   ctx.strokeStyle='#e2f5e366';ctx.lineWidth=1;
   for(let y=low;y<high;y+=8){
@@ -323,21 +378,6 @@ function drawCanal(){
       const sway=Math.sin(y*.33+clock*1.5)*3;
       ctx.beginPath();ctx.moveTo(p.x-7,p.y+sway);
       ctx.quadraticCurveTo(p.x,p.y-3+sway,p.x+8,p.y+sway);ctx.stroke();
-    }
-  }
-  // Towpath plants grow along natural banks, not on brick or aqueduct walls.
-  for(let y=Math.floor(low/17)*17;y<high;y+=17){
-    if(waterwayAt(y).bank!=='natural')continue;
-    for(const side of [-1,1]){
-      const p=project(centreAt(y)+side*(halfWidthAt(y)+3.3),y);
-      const seed=Math.sin(y*14.163+side*67)*43758.5;
-      const v=seed-Math.floor(seed);
-      if(v>.23){
-        ctx.fillStyle=v>.8?'#6a986a':'#90b785';ctx.beginPath();
-        ctx.ellipse(p.x,p.y,6+v*5,8+v*6,.4,0,Math.PI*2);ctx.fill();
-        ctx.fillStyle='#b3c99b';ctx.beginPath();
-        ctx.arc(p.x-2,p.y-2,2+v*2,0,Math.PI*2);ctx.fill();
-      }
     }
   }
   // Subtle in-world transition markers reinforce the changes in the HUD.
@@ -354,20 +394,10 @@ function drawCanal(){
       ctx.restore();
     }
   }
-  // Original bridges and additional test bridge have their own clearances.
   for(const bridge of getActiveCourse().bridges){
-    const y=bridge.y,p=project(centreAt(y),y);
-    if(p.y< -50||p.y>height+50)continue;
-    ctx.save();ctx.translate(p.x,p.y);
-    ctx.fillStyle='#8b7d67';ctx.fillRect(-width,-2.8*scale,width*2,5.6*scale);
-    ctx.fillStyle='#c9bca3';ctx.fillRect(-width,-2.8*scale,width*2,7);
-    ctx.fillRect(-width,2.8*scale-7,width*2,7);
-    ctx.fillStyle='#76a8ac';
-    ctx.fillRect(-bridge.opening*scale/2,-2.8*scale,bridge.opening*scale,5.6*scale);
-    ctx.strokeStyle='#e3d7b9';ctx.lineWidth=3;
-    ctx.strokeRect(-bridge.opening*scale/2,-2.8*scale,bridge.opening*scale,5.6*scale);
-    ctx.restore();
+    drawStoneBridge(ctx,{bridge,project,centreAt,scale,width,height});
   }
+  drawLockApproach();
   drawLock();
 }
 function drawLock(){
