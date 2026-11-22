@@ -1,10 +1,11 @@
-import { resistanceComponents } from './hydrodynamics.js?v=20261122-10';
-import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from './ghost.js?v=20261122-10';
-import { drawFields, drawTowpath, drawStoneBridge } from './scenery.js?v=20261122-10';
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-10';
-import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-10';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-10';
-import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-10';
+import { resistanceComponents } from './hydrodynamics.js?v=20261122-11';
+import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from './ghost.js?v=20261122-11';
+import { drawFields, drawTowpath, drawStoneBridge } from './scenery.js?v=20261122-11';
+import { updateLockStop, LOCK_STOP } from './lock-stop.js?v=20261122-11';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-11';
+import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from './water.js?v=20261122-11';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-11';
+import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt, waterwayAt, checkBanks, insideLock, pointOnHull, canalEnvironmentAt } from './course.js?v=20261122-11';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
@@ -13,10 +14,11 @@ const ui={
   speed:$('speedDisplay'), state:$('stateDisplay'), feedback:$('feedback'), course:$('courseMessage'),
   throttleTrack:$('throttleTrack'), throttleThumb:$('throttleThumb'),
   tillerPad:$('tillerPad'), tillerStick:$('tillerStick'), tillerReadout:$('tillerReadout'), hint:$('hintDisplay'),
-  waterLabel:$('waterLabel'), waterInfo:$('waterInfo'), ghostChip:$('ghostChip')
+  waterLabel:$('waterLabel'), waterInfo:$('waterInfo'), ghostChip:$('ghostChip'),
+  lockIndicator:$('lockIndicator'), lockIndicatorText:$('lockIndicatorText'), lockProgress:$('lockProgress')
 };
 let boat, controls, elapsed, penalties, running=false, finished=false, paused=false;
-let messageTime=0, message='', lockHold=0, collisionCooldown=0, contactTotal=0, last=0, accumulator=0;
+let messageTime=0, message='', lockHold=0, lockState=null, collisionCooldown=0, contactTotal=0, last=0, accumulator=0;
 let camera={x:0,y:0}, width=0,height=0,scale=5.4, clock=0;
 let wakeMarks=[],lastWakeAt=0;
 let recordedFrames=[],currentGhost=null,ghostEnabled=true;
@@ -36,7 +38,7 @@ function readBest(){return readBestFor(selectedCourse);}
 let best=readBest();
 function renderCoursePicker(){
   const course=getActiveCourse();
-  $('stageNumber').textContent='POWER CANAL v0.4.0 / STAGE '+course.number;
+  $('stageNumber').textContent='POWER CANAL v0.4.1 / STAGE '+course.number;
   $('stageName').textContent=course.name;
   $('startDescription').textContent=course.description;
   $('homeProgress').textContent=['classic','test'].filter(id=>readBestFor(id)!==null).length+' / 2';
@@ -64,6 +66,7 @@ function reset(showStart=false){
   appendGhostFrame(recordedFrames,0,boat,true);
   controls={throttle:0,tiller:0};wakeMarks=[];lastWakeAt=0;clock=0;elapsed=0;penalties=0;lockHold=0;
   contactTotal=0;collisionCooldown=0;running=!showStart;finished=false;paused=false;
+  lockState=updateLockStop(boat,0,0,BOAT.length,BOAT.beam);
   camera={x:boat.x,y:boat.y}; accumulator=0;message='';messageTime=0;
   ui.finish.classList.add('is-hidden');ui.start.classList.toggle('is-hidden',!showStart);
   $('gameShell').classList.toggle('is-home',showStart);
@@ -167,24 +170,66 @@ function simulate(dt){
     if(collisionCooldown<=0)addPenalty(10,'Lock gate impact');
   }
   appendGhostFrame(recordedFrames,elapsed,boat);
-  // Finish is positional and physical, not just reaching a checkpoint.
-  if(insideLock(boat,BOAT.length,BOAT.beam) && Math.hypot(boat.vx,boat.vy)<.08 && Math.abs(boat.yawRate)<.025){
-    lockHold+=dt;if(lockHold>1.4)finish();
-  }else lockHold=0;
+  // A true full-hull lock finish still requires low ground speed and low
+  // yaw. Tiny residual drift now counts as settled, and brief borderline
+  // oscillations reduce progress rather than reset it every frame.
+  lockState=updateLockStop(boat,lockHold,dt,BOAT.length,BOAT.beam);
+  lockHold=lockState.hold;
+  if(lockState.complete)finish();
 }
 function updateUI(){
-  ui.time.textContent=formatTime(elapsed);ui.penalty.textContent='+'+String(penalties).padStart(2,'0')+'s penalty';
-  ui.speed.textContent=(Math.abs(boat.forwardSpeed)*2.23694).toFixed(1);
+  ui.time.textContent=formatTime(elapsed);
+  ui.penalty.textContent='+'+String(penalties).padStart(2,'0')+'s penalty';
+  // Report total speed over ground, including sideways drift. Previously
+  // the speedometer omitted lateral velocity while the finish test did not.
+  const speed=Math.hypot(boat.vx,boat.vy);
+  ui.speed.textContent=(speed*2.23694).toFixed(1);
   ui.state.textContent=paused?'PAUSED':boat.throttle<-.05?'ASTERN · '+Math.round(-boat.throttle*100)+'%':boat.throttle>.05?'AHEAD · '+Math.round(boat.throttle*100)+'%':'NEUTRAL · COASTING';
   const section=waterwayAt(boat.y);
   ui.waterLabel.textContent=section.name;
   ui.waterInfo.textContent='DEPTH '+section.depth.toFixed(2)+'m · WIDTH '+section.width.toFixed(1)+'m';
+  const docking=lockState??updateLockStop(boat,0,0,BOAT.length,BOAT.beam);
+  const nearLock=boat.y<LOCK.startY+64;
+  ui.lockIndicator.classList.toggle('is-hidden',!nearLock||finished);
+  $('playfield').classList.toggle('is-lock-near',nearLock&&!finished);
+  const percent=Math.min(100,Math.round(docking.progress*100));
+  ui.lockProgress.style.width=percent+'%';
+  $('lockProgressTrack').setAttribute('aria-valuenow',String(percent));
+  let label='LOCK AHEAD · SLOW DOWN';
+  if(nearLock){
+    switch(docking.status){
+      case 'entrance':
+        label='MOVE FORWARD · STERN STILL OUTSIDE';break;
+      case 'far-gate':
+        label='TOO FAR FORWARD · REVERSE';break;
+      case 'side-wall':
+        label='CENTRE BOAT BETWEEN LOCK WALLS';break;
+      case 'moving':
+        label='SLOW TO 0.4 MPH · NOW '+(docking.speed*2.23694).toFixed(1);break;
+      case 'turning':
+        label='SETTLE THE TURN · CENTRE TILLER';break;
+      case 'holding':
+        label='BOAT INSIDE · HOLD STILL '+percent+'%';break;
+      case 'complete':
+        label='LOCK SECURED';break;
+    }
+  }
+  ui.lockIndicatorText.textContent=label;
   const distance=boat.y-LOCK.startY;
-  if(boat.y<LOCK.startY+22){
-    ui.course.textContent=insideLock(boat,BOAT.length,BOAT.beam)?'HOLD STILL IN THE LOCK '+Math.round(lockHold/1.4*100)+'%':'ENTER LOCK · STOP INSIDE';
-    ui.hint.textContent='USE REVERSE TO BRAKE';
-  }else if(distance<95){ui.course.textContent='LOCK AHEAD · PREPARE TO STOP';ui.hint.textContent='SLOW EARLY';}
-  else{ui.course.textContent=selectedCourse==='test'?'COMPARE WATER CONDITIONS · WATCH YOUR STERN':'FOLLOW THE CANAL · WATCH YOUR STERN';ui.hint.textContent=selectedCourse==='test'?'WATCH DEPTH & WIDTH':'STOP INSIDE THE LOCK';}
+  if(nearLock){
+    ui.course.textContent=label;
+    ui.hint.textContent=docking.inside
+      ? (docking.stable?'HOLD POSITION':'STEADY THE BOAT')
+      : 'ENTIRE BOAT MUST FIT';
+  }else if(distance<95){
+    ui.course.textContent='LOCK AHEAD · PREPARE TO STOP';
+    ui.hint.textContent='SLOW EARLY';
+  }else{
+    ui.course.textContent=selectedCourse==='test'
+      ?'COMPARE WATER CONDITIONS · WATCH YOUR STERN'
+      :'FOLLOW THE CANAL · WATCH YOUR STERN';
+    ui.hint.textContent=selectedCourse==='test'?'WATCH DEPTH & WIDTH':'STOP INSIDE THE LOCK';
+  }
   ui.feedback.textContent=messageTime>0?message:paused?'PAUSED':'';
   const visible=Boolean(currentGhost&&ghostEnabled&&running&&sampleGhost(currentGhost,elapsed));
   ui.ghostChip.classList.toggle('is-hidden',!visible);
