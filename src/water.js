@@ -27,3 +27,14 @@ export function pruneWakeMarks(marks,time) {
   while(marks.length && time-marks[0].time>WAKE_LIFETIME) marks.shift();
   return marks;
 }
+
+// The propeller jet hits the rudder when moving ahead, diverting the stream.
+// Positive rudder/tiller means the wash turns toward port (negative local side).
+// Astern, the jet flows mainly forward under the hull and the rudder has much
+// less authority. Use the delayed *actual rudder* angle, not touch input.
+// Returns lateral offset in metres at a distance from the propeller.
+export function propWashSideOffset(rudder, throttle, distance) {
+  if(Math.abs(throttle)<0.01 || distance<=0) return 0;
+  const effectiveness=throttle>0 ? -0.52 : 0.10;
+  return Math.tan(clamp(rudder,-0.72,0.72))*distance*effectiveness;
+}
