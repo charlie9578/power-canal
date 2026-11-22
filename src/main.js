@@ -198,7 +198,9 @@ function updateUI(){
   ui.lockProgress.style.width=percent+'%';
   $('lockProgressTrack').setAttribute('aria-valuenow',String(percent));
   let label='LOCK AHEAD · SLOW DOWN';
-  if(nearLock){
+  // At approach distance, warn about braking rather than incorrectly
+  // saying the stern is outside the lock before the bow even arrives.
+  if(nearLock && boat.y<LOCK.startY+BOAT.length*.65+4){
     switch(docking.status){
       case 'entrance':
         label='MOVE FORWARD · STERN STILL OUTSIDE';break;
