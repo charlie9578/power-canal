@@ -150,7 +150,7 @@ function boot(course){
     'speedometer should display sideways drift, not zero');
   assert.match(node('lockIndicatorText').textContent,/SLOW BELOW 0.18 MPH/);
   vm.runInContext(`
-    boat.vx=0;boat.vy=-.1;boat.yawRate=0;
+    boat.vx=0;boat.vy=-.06;boat.yawRate=0;
     lockState=updateLockStop(boat,.6,0,BOAT.length,BOAT.beam);
     updateUI();
   `,sandbox);
