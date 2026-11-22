@@ -68,6 +68,9 @@ function reset(showStart=false){
   ui.finish.classList.add('is-hidden');ui.start.classList.toggle('is-hidden',!showStart);
   $('gameShell').classList.toggle('is-home',showStart);
   $('gameShell').classList.remove('is-finished');
+  // Home/finish use the full screen; the driving deck changes playfield
+  // dimensions. Recalculate canvas backing size whenever the layout flips.
+  resize();
   $('pauseButton').textContent='Ⅱ';renderCoursePicker();renderControls();updateUI();
 }
 function announce(text,seconds=1.8){message=text;messageTime=seconds;}
@@ -103,6 +106,7 @@ function finish(){
     : '◇ Replay recording unavailable. Your time has still been recorded.';
   renderControls();
   $('gameShell').classList.add('is-finished');
+  resize();
   ui.finish.classList.remove('is-hidden');
 }
 function simulate(dt){
