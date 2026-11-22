@@ -16,6 +16,16 @@ python3 -m http.server 8000
 
 Open [http://localhost:8000](http://localhost:8000) on your computer. To play from a phone, use your development machine's LAN IP and ensure your firewall permits local connections.
 
+## Home screen, progress and ghost racing (v0.4.0)
+
+The game now opens on a dedicated home screen: the driving deck is hidden until a stage starts, and the home screen displays the **number of completed stages**, **best adjusted time** for the selected course, and course-specific personal bests.
+
+**Ghost replay:** On completion of either stage, the boat's world-space position and heading are sampled approximately every 0.25 seconds. The fastest successfully saved *completed recording* for that stage becomes its transparent cyan ghost boat on subsequent runs. The ghost is drawn as a time-indexed replay, not simulated AI, and doesn't affect water physics or collisions. Toggle it with the **◇** button on the driving deck or **G** on desktop. Ghosts are saved locally in the browser; they are not shared or uploaded. If your best time predates this release, that time is still displayed but has no corresponding replay. The first new completed run establishes a ghost baseline; subsequent faster recorded scores replace it. Because adjusted scores include collision penalties, the visual replay advances in actual elapsed race time while the time displayed for the ghost is the adjusted best score.
+
+**Lock improvements:** The lock is now a distinct stone-walled chamber. It has a conspicuously **open entrance**, visible closed gates at the far end, alignment markings, clear stopping guidance and roadside approach signs. No geometry or finish condition was changed.
+
+**Scenery:** Procedural fields and hedges, a continuous west-bank towpath, waterside trees, stone paving through masonry sections, and more legible stone bridges. These details are **visual only** and are not obstacles.
+
 ## Select a course
 
 The opening menu now offers two selectable stages:
@@ -25,13 +35,13 @@ The opening menu now offers two selectable stages:
 
 The conditions display shows the current **nominal channel width and depth**. These quantities feed the Schijf-based resistance calculation and shore effects, so this is a real handling and speed test, not just different paint. Bank construction changes the visuals; stone, brick and earth do not yet have separately identified hydrodynamic coefficients. All geometry is fictional and dimensions are exploratory, not a surveyed canal.
 
-To switch courses, use the **≋ course button** next to Pause and Restart, or **Change Course** on the results screen. Each stage maintains its own best time. You can also start the test course directly with [the Waterway Lab URL](https://charlie9578.github.io/power-canal/?course=test&v=20261122-9).
+To switch courses, tap the **⌂ home button** next to Pause and Restart, or **Change Course** on the results screen. Each stage maintains its own best time. You can also start the test course directly with [the Waterway Lab URL](https://charlie9578.github.io/power-canal/?course=test&v=20261122-10).
 
 **Touch controls**
 
 - **Left throttle:** drag up for five notched ahead settings (+1 to +5), drag down for five notched astern settings (−1 to −5), with neutral (0) in the middle. Only MAX, NEUTRAL and MIN are marked on the control, but dragging still snaps to eleven settings in 20% increments. The lever stays in the selected position. The left-hand lever now uses more of the control deck height.
 - **Right tiller:** drag towards port or starboard; it stays where you leave it; the lever physically sweeps from centre to full lock in about 0.3 seconds. **Real tiller behaviour:** pushing the handle towards starboard turns the *bow to port*. The boat continues rotating for a while after the handle returns to centre.
-- Pause (Ⅱ), restart (↻) and course selection (≋) are in the control deck.
+- Pause (Ⅱ), restart (↻), home/course selection (⌂) and ghost replay (◇) are in the control deck.
 - Desktop fallback: **↑ / ↓** adjust throttle, **← / →** adjust tiller, **Space** neutral, **C** centre tiller.
 
 ## Finish and scoring
@@ -58,6 +68,8 @@ The fixed-timestep dynamics model in `src/physics.js` now uses a coupled **surge
 - `style.css`: responsive portrait mobile layout.
 - `src/physics.js`: three-degree-of-freedom surge/sway/yaw model and directional poles.
 - `src/hydrodynamics.js`: hull resistance, Schijf limit, and propeller KT-J model.
+- `src/ghost.js`: timestamped local run recordings and ghost interpolation.
+- `src/scenery.js`: deterministic fields, towpaths and stone bridge rendering.
 - `src/steering-analysis.js`: Nomoto gain, zeros and poles.
 - `PHYSICS.md`: engineering notes, model derivation and calibration plan.
 - `src/course.js`: two fictional canal layouts, section widths/depths, bank styles, bridges, aqueduct and lock geometry.
@@ -65,6 +77,8 @@ The fixed-timestep dynamics model in `src/physics.js` now uses a coupled **surge
 - `src/water.js`: movement-aligned, world-space wake samples and their lifetimes.
 - `src/throttle.js`: 11-position combined throttle and reverse lever.
 - `tests/courses.test.js`: route selection, centreline clearances, depth/width transitions and differential resistance.
+- `tests/browser-startup.test.js`: browser entrypoint and home layout smoke tests.
+- `tests/ghost.test.js`: replay serialization, interpolation, and stage isolation.
 - `tests/navigation.test.js`: complete physics-based drive-throughs of both courses, including bridges and stopping inside the locks.
 - `tests/physics.test.js`: handling tests.
 - `tests/hydrodynamics.test.js`: friction, waves, restricted-water and propeller tests.
@@ -77,8 +91,8 @@ Run tests with `npm test` (requires modern Node.js; only the tests need Node).
 1. Calibrate propeller RPM/thrust, straight-line power, stopping, zigzag, and turning curves using real narrowboat trials.
 2. Improve bank geometry, return-flow and squat estimates, and validate bow waves against restricted-water trials.
 3. Add a second boat with approximation-based pressure interaction for overtaking.
-4. Add replay/ghost racing, more stages, and an optional steering-assist mode.
-5. Improve canal banks, bridges and lock visuals while retaining inexpensive 2D canvas rendering.
+4. Design an advanced stage with tight turnings or winding holes that require slowing and using short pulses of ahead thrust and counter-tiller; validate physical reachability before release.
+5. Improve scenery variety (towpath junctions, livestock, buildings, moorings) while retaining inexpensive 2D canvas rendering.
 
 ## Design goal
 
@@ -90,9 +104,9 @@ The stern wake is intentionally subtle: a shorter-lived, sparser and less opaque
 
 ## Deployment verification
 
-GitHub Pages hosts the game at https://charlie9578.github.io/power-canal/ . The HUD shows the build version (currently **v0.3.3**). Static CSS and JS links include a release-specific query string so a new deployment loads fresh game assets. If the old page is still cached, open https://charlie9578.github.io/power-canal/?v=20261122-9 to force a fresh document URL.
+GitHub Pages hosts the game at https://charlie9578.github.io/power-canal/ . The HUD shows the build version (currently **v0.4.0**). Static CSS and JS links include a release-specific query string so a new deployment loads fresh game assets. If the old page is still cached, open https://charlie9578.github.io/power-canal/?v=20261122-10 to force a fresh document URL.
 
-### v0.3.3 navigability correction
+### v0.4.0 navigability correction
 
 The original Stage 01 remains unchanged. Stage 02's original shallow narrows placed a narrow bridge in a steep S-bend. The bridge collision test assumes a cross-channel aperture and would strike a correctly aligned boat on that curve. In addition, the narrow and twisting stretch could keep the hull marginally overlapping the bank; the former contact drag applied very strongly even to a tiny scrape, making progress almost impossible.
 
