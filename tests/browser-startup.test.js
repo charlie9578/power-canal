@@ -28,7 +28,7 @@ const modules={
 };
 
 function boot(course){
-  const frames=[],nodes=new Map(),calls={paint:0};
+  const frames=[],nodes=new Map(),calls={paint:0},saved=new Map();
   let paintStarted=false;
   const ctx=new Proxy({},{
     get(_target,key){
@@ -73,10 +73,15 @@ function boot(course){
     addEventListener(){}
   };
   const window={location:{search:'?course='+course},devicePixelRatio:1,addEventListener(){}};
-  vm.runInNewContext(source,{
-    ...modules,document,window,URLSearchParams,localStorage:{getItem(){return null;},setItem(){}},
+  const sandbox=vm.createContext({
+    ...modules,document,window,URLSearchParams,
+    localStorage:{
+      getItem(key){return saved.get(key)??null;},
+      setItem(key,value){saved.set(key,value);}
+    },
     requestAnimationFrame(fn){frames.push(fn);}
-  },{timeout:2000,filename:'src/main.js'});
+  });
+  vm.runInContext(source,sandbox,{timeout:2000,filename:'src/main.js'});
   assert.equal(node('gameShell').classList.contains('is-home'),true,'home initially hides game controls');
   assert.match(node('homeProgress').textContent,/0 \/ 2/);
   assert.match(node('homeSelectedBest').textContent,/--:--/);
@@ -94,9 +99,26 @@ function boot(course){
   }
   assert.ok(calls.paint>previous+100,'gameplay must continue drawing');
   assert.equal(paintStarted,true);
+  // Exercise finish bookkeeping in the real entrypoint. The physics-based
+  // end-to-end lock test is in navigation.test.js; here we call finish
+  // directly to verify completion saves the best time and ghost replay.
+  vm.runInContext('elapsed=1.5; finish();',sandbox);
+  assert.ok(node('gameShell').classList.contains('is-finished'));
+  assert.match(node('resultGhost').textContent,/New course ghost recorded/);
+  assert.ok(saved.has('power-canal-ghost-v1-'+course));
+  assert.ok(saved.has('power-canal-best-'+course));
   node('courseButton').__events.click();
   assert.equal(node('gameShell').classList.contains('is-home'),true,'course button returns to home');
-  assert.match(node('homeProgress').textContent,/0 \/ 2/);
+  assert.match(node('homeProgress').textContent,/1 \/ 2/);
+  assert.match(node('homeSelectedBest').textContent,/00:01/);
+  assert.match(node('homeGhostStatus').textContent,/Replay ghost ready/);
+  node('startButton').__events.click();
+  assert.equal(node('ghostToggle').disabled,false);
+  assert.equal(node('ghostChip').classList.contains('is-hidden'),false);
+  node('ghostToggle').__events.click();
+  assert.equal(node('ghostChip').classList.contains('is-hidden'),true);
+  node('courseButton').__events.click();
+  assert.ok(node('gameShell').classList.contains('is-home'));
 }
 
 for(const route of ['classic','test']){
