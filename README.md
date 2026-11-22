@@ -19,7 +19,7 @@ Open [http://localhost:8000](http://localhost:8000) on your computer. To play fr
 **Touch controls**
 
 - **Left throttle:** drag up for five notched ahead settings (+1 to +5), drag down for five notched astern settings (−1 to −5), with neutral (0) in the middle. Only MAX, NEUTRAL and MIN are marked on the control, but dragging still snaps to eleven settings in 20% increments. The lever stays in the selected position. The left-hand lever now uses more of the control deck height.
-- **Right tiller:** drag towards port or starboard; it stays where you leave it. **Real tiller behaviour:** pushing the handle towards starboard turns the *bow to port*. The boat continues rotating for a while after the handle returns to centre.
+- **Right tiller:** drag towards port or starboard; it stays where you leave it; the lever physically sweeps from centre to full lock in about 0.3 seconds. **Real tiller behaviour:** pushing the handle towards starboard turns the *bow to port*. The boat continues rotating for a while after the handle returns to centre.
 - Pause (Ⅱ) and restart (↻) are in the control deck.
 - Desktop fallback: **↑ / ↓** adjust throttle, **← / →** adjust tiller, **Space** neutral, **C** centre tiller.
 
@@ -35,7 +35,7 @@ The fixed-timestep dynamics model in `src/physics.js` now uses a coupled **surge
 
 - Boat mass, forward and reverse engine thrust, longitudinal linear/quadratic drag, and speed-dependent resistance.\n- Stylised V-shaped bow waves aligned to actual travel velocity, lingering world-space trailing wake, and throttle-dependent propeller wash that reverses direction in astern.
 - Lateral velocity and damping, rather than steering the heading vector directly.
-- Direct tiller-to-rudder steering (no artificial rudder delay), distributed cross-flow hull forces, propeller-enhanced rudder lift at low forward speed, weak reverse rudder action, and sway/yaw coupling.
+- Rate-limited direct tiller-to-rudder steering, with stronger yaw inertia and weaker lateral/yaw damping, distributed cross-flow hull forces, propeller-enhanced rudder lift at low forward speed, weak reverse rudder action, and sway/yaw coupling.
 - Depth/channel-blockage-dependent resistance, approximate bank bow-pressure/stern-suction forces, and a hull-length-based boundary check for bank contact, bridge checks, and a full-hull lock finish.
 
 **Calibration warning:** This is a physics-structured but not yet instrument-calibrated model. The hull, rudder, thrust, drag and bank coefficients are estimates; the confinement and bank models are deliberately simplified, and interactions with *other boats* are future work. See [PHYSICS.md](PHYSICS.md) for equations, assumptions and right-half-plane pole analysis.
@@ -69,4 +69,4 @@ The stern wake is intentionally subtle: a shorter-lived, sparser and less opaque
 
 ## Deployment verification
 
-GitHub Pages hosts the game at https://charlie9578.github.io/power-canal/ . The HUD shows the build version (currently **v0.2.0**). Static CSS and JS links include a release-specific query string so a new deployment loads fresh game assets. If the old page is still cached, open https://charlie9578.github.io/power-canal/?v=20261122-4 to force a fresh document URL.
+GitHub Pages hosts the game at https://charlie9578.github.io/power-canal/ . The HUD shows the build version (currently **v0.2.1**). Static CSS and JS links include a release-specific query string so a new deployment loads fresh game assets. If the old page is still cached, open https://charlie9578.github.io/power-canal/?v=20261122-5 to force a fresh document URL.
