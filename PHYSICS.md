@@ -1,4 +1,4 @@
-# Power Canal physics model (v0.4.3)
+# Power Canal physics model (v0.5.0)
 
 ## Scope and confidence
 
@@ -215,3 +215,11 @@ The speedometer now reports `hypot(vx,vy)` (ground speed), matching the finish c
 ## v0.4.3 — docking preference
 
 The lock finish now requires **full-hull containment** anywhere in the chamber plus **0.08 m/s maximum ground speed** continuously for **2 seconds**. Full-sized hull corners are checked, with a 5 cm geometric tolerance. No target at the lock centre and no separate yaw-rate gating are used; rotation matters only insofar as it causes a hull corner to cross the chamber boundary. Small speed fluctuations up to 0.105 m/s reduce accumulated hold progress; larger speeds reset it. The two-decimal speed readout near the lock clarifies the 0.18 mph limit. No changes are made to the hydrodynamic or steering model.
+
+## v0.5.0 — winding-hole low-speed turning experiment
+
+Stage 03 exercises the existing coupled surge/sway/yaw model without altering any boat coefficients. A newly shaped spline dogleg shifts the canal centreline sideways by 35 metres over a short turning reach; near its apex the geometric curvature radius is approximately 7 m. Channel width grows to 27 m in the winding hole to let a 14.6 m boat pivot and use the stern swing. Its entrance and exit are considerably narrower, so high cruising speeds are risky.
+
+The stone wharf at the basin exit is a **real collision obstacle**, not an invisible speed gate. Hull strip samples intersecting the rectangular quay experience lateral correction, speed/yaw damping and a penalty on significant impacts. The wharf is rendered using exactly the same metre coordinates as the collision geometry.
+
+The helmsman in `tests/technical-navigation.test.js` begins braking before the corner and applies intermittent forward thrust with the tiller deflected, using propeller wash for heading control while keeping speed down. Its successful lock finish, absence of collisions and a separate full-ahead late-turn impact demonstrate a useful difference in playable strategy. This is an engineering/gameplay proof of a *possible* route and does not prove there is no skilled flat-out route. Rudder force, engine thrust and bank hydrodynamics are unchanged from v0.4.3.
