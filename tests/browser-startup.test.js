@@ -6,7 +6,7 @@ import { BOAT, clamp, createBoat, stepBoat } from '../src/physics.js';
 import { resistanceComponents } from '../src/hydrodynamics.js';
 import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost, ghostKey } from '../src/ghost.js';
 import { drawFields, drawTowpath, drawStoneBridge } from '../src/scenery.js';
-import { updateLockStop, LOCK_STOP } from '../src/lock-stop.js';
+import { updateLockStop, LOCK_STOP, lockSpeedMph } from '../src/lock-stop.js';
 import { TECHNICAL_PATH,technicalNearest,technicalBankContact,technicalSectionAt } from '../src/technical-route.js';
 import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from '../src/water.js';
 import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from '../src/throttle.js';
@@ -25,7 +25,7 @@ assert.equal(declaredIds.has('courseMessage'),false,
 const modules={
   BOAT,clamp,createBoat,stepBoat,resistanceComponents,
   appendGhostFrame,makeGhost,readGhost,saveGhost,shouldReplaceGhost,sampleGhost,
-  drawFields,drawTowpath,drawStoneBridge,updateLockStop,LOCK_STOP,
+  drawFields,drawTowpath,drawStoneBridge,updateLockStop,LOCK_STOP,lockSpeedMph,
   TECHNICAL_PATH,technicalNearest,technicalBankContact,technicalSectionAt,
   createWakeMark,pruneWakeMarks,travelAngle,propWashSideOffset,WAKE_LIFETIME,
   clampNotch,throttleFromNotch,notchFromTrackPosition,positionForNotch,labelForNotch,
@@ -141,7 +141,7 @@ function boot(course){
     updateUI();
   `,sandbox);
   assert.equal(node('lockIndicator').classList.contains('is-hidden'),false);
-  assert.match(node('lockIndicatorText').textContent,/STERN STILL OUTSIDE/);
+  assert.match(node('lockIndicatorText').textContent,/STERN .* M OUT/);
   vm.runInContext(`
     boat.y=(LOCK.startY+LOCK.endY)/2;
     boat.vx=.2;boat.vy=0;boat.forwardSpeed=0;
@@ -150,14 +150,25 @@ function boot(course){
   `,sandbox);
   assert.equal(node('speedDisplay').textContent,'0.45',
     'speedometer should display sideways drift, not zero');
-  assert.match(node('lockIndicatorText').textContent,/SLOW BELOW 0.18 MPH/);
+  assert.match(node('lockIndicatorText').textContent,/SLOW TO 0.18 MPH/);
   vm.runInContext(`
     boat.vx=0;boat.vy=-.06;boat.yawRate=0;
     lockState=updateLockStop(boat,.6,0,BOAT.length,BOAT.beam);
     updateUI();
   `,sandbox);
-  assert.match(node('lockIndicatorText').textContent,/STOP FOR 2 SECONDS · 30%/);
+  assert.match(node('lockIndicatorText').textContent,/LOCK STOP · 1.4 S REMAINING/);
   assert.equal(node('lockProgress').style.width,'30%');
+  // The old bug showed 0.18 mph while refusing to begin. Exercise the
+  // actual browser HUD and countdown with a velocity that rounds to 0.18.
+  vm.runInContext(`
+    boat.vx=0;boat.vy=-.082;
+    lockState=updateLockStop(boat,0,1/60,BOAT.length,BOAT.beam);
+    updateUI();
+  `,sandbox);
+  assert.equal(node('speedDisplay').textContent,'0.18');
+  assert.match(node('lockIndicatorText').textContent,/LOCK STOP/);
+  assert.ok(Number(node('lockProgress').style.width.replace('%',''))>0,
+    'visible 0.18 mph must start countdown, not show a speed blocker');
   // Exercise finish bookkeeping in the real entrypoint. The physics-based
   // end-to-end lock test is in navigation.test.js; here we call finish
   // directly to verify completion saves the best time and ghost replay.
