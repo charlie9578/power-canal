@@ -16,7 +16,7 @@ python3 -m http.server 8000
 
 Open [http://localhost:8000](http://localhost:8000) on your computer. To play from a phone, use your development machine's LAN IP and ensure your firewall permits local connections.
 
-## Home screen, progress and ghost racing (v0.4.2)
+## Home screen, progress and ghost racing (v0.4.3)
 
 The game now opens on a dedicated home screen: the driving deck is hidden until a stage starts, and the home screen displays the **number of completed stages**, **best adjusted time** for the selected course, and course-specific personal bests.
 
@@ -35,7 +35,7 @@ The opening menu now offers two selectable stages:
 
 The conditions display shows the current **nominal channel width and depth**. These quantities feed the Schijf-based resistance calculation and shore effects, so this is a real handling and speed test, not just different paint. Bank construction changes the visuals; stone, brick and earth do not yet have separately identified hydrodynamic coefficients. All geometry is fictional and dimensions are exploratory, not a surveyed canal.
 
-To switch courses, tap the **⌂ home button** next to Pause and Restart, or **Change Course** on the results screen. Each stage maintains its own best time. You can also start the test course directly with [the Waterway Lab URL](https://charlie9578.github.io/power-canal/?course=test&v=20261122-12).
+To switch courses, tap the **⌂ home button** next to Pause and Restart, or **Change Course** on the results screen. Each stage maintains its own best time. You can also start the test course directly with [the Waterway Lab URL](https://charlie9578.github.io/power-canal/?course=test&v=20261122-13).
 
 **Touch controls**
 
@@ -46,7 +46,7 @@ To switch courses, tap the **⌂ home button** next to Pause and Restart, or **C
 
 ## Finish and scoring
 
-The clock runs until your whole 48-foot boat is **inside** the lock, your total speed over ground is below **0.16 m/s (0.36 mph)**, your yaw rate is below **0.040 rad/s**, and you have held that position for **1.2 seconds**. Passing the lock approach at speed won't complete the trial. Use reverse power early to brake. A status panel near the lock tells you whether the **stern is outside, the boat is off centre, speed is too high, or yaw is still settling**, plus shows the hold progress. Small speed or yaw fluctuations reduce progress rather than erase it; significant movement resets the hold.
+The clock runs until your whole 48-foot boat is **inside** the lock anywhere within its walls and gates, moving slower than **0.08 m/s (0.18 mph)** for **2 seconds**. There is no requirement to centre the boat along or across the chamber, nor a separate yaw-rate threshold. Passing the lock approach at speed won't complete the trial. Use reverse power early to brake. A status panel near the lock tells you whether the **stern is outside, part of the hull is outside the lock walls, or speed is too high**, plus shows the hold progress. Small speed or yaw fluctuations reduce progress rather than erase it; significant movement resets the hold.
 
 Contact with the bank, a bridge, or the far lock gate slows your boat; significant strikes also add time. The final score is **elapsed time + penalties**. A separate best score is stored locally for each course.
 
@@ -106,9 +106,9 @@ The stern wake is intentionally subtle: a shorter-lived, sparser and less opaque
 
 ## Deployment verification
 
-GitHub Pages hosts the game at https://charlie9578.github.io/power-canal/ . The HUD shows the build version (currently **v0.4.2**). Static CSS and JS links include a release-specific query string so a new deployment loads fresh game assets. If the old page is still cached, open https://charlie9578.github.io/power-canal/?v=20261122-12 to force a fresh document URL.
+GitHub Pages hosts the game at https://charlie9578.github.io/power-canal/ . The HUD shows the build version (currently **v0.4.3**). Static CSS and JS links include a release-specific query string so a new deployment loads fresh game assets. If the old page is still cached, open https://charlie9578.github.io/power-canal/?v=20261122-13 to force a fresh document URL.
 
-### v0.4.2 navigability correction
+### v0.4.3 navigability correction
 
 The original Stage 01 remains unchanged. Stage 02's original shallow narrows placed a narrow bridge in a steep S-bend. The bridge collision test assumes a cross-channel aperture and would strike a correctly aligned boat on that curve. In addition, the narrow and twisting stretch could keep the hull marginally overlapping the bank; the former contact drag applied very strongly even to a tiny scrape, making progress almost impossible.
 
@@ -116,12 +116,18 @@ Stage 02 now has more forgiving shallow bends (8.6 m wide, still only 0.98 m dee
 
 A test-only look-ahead helm drives the unchanged 48-foot boat with actual thrust, drag, yaw inertia, bridges, bank checks and lock completion logic. It must finish *both* courses without bridge strikes or significant bank contact. The automatic controller is only in the test suite; no player steering assistance has been added. This demonstrates navigability, not a guarantee that every steering strategy or speed will succeed.
 
-### v0.4.2 — lock finish reliability
+### v0.4.3 — lock finish reliability
 
 The previous lock-finish criterion was so strict (ground speed under 0.08 m/s for 1.4 uninterrupted seconds) that a boat appearing stationary could coast in neutral for a minute and still not finish. The speed display also showed only the longitudinal body velocity while the finish check used total ground velocity, hiding sideways drift.
 
 The game now shows **total ground speed**, accepts a settled boat under **0.16 m/s** and **0.040 rad/s** yaw, and requires a **1.2-second** lock hold. Minor brief speed/yaw fluctuations subtract hold progress, instead of snapping the progress to zero. Leaving the lock or moving significantly resets the hold as before. The full hull must still fit inside the chamber. A dedicated lock indicator explains whether the boat needs to move forward, reverse, centre itself, slow down or settle its rotation. Neither hydrodynamic forces nor the existing route geometry has changed.
 
-### v0.4.2 — unobstructed navigation HUD
+### v0.4.3 — unobstructed navigation HUD
 
 The always-visible floating `Follow the canal · watch your stern` message has been removed from the canvas, where it could overlap time and waterway data on compact phones. Ordinary steering/waterway hints now live only in the control-deck footer. The dedicated lower-right lock docking panel retains all status and hold-progress information, appearing about 95 m before the lock entrance to give ample braking warning. The water depth/width badge is positioned below the time and stage headers. This update changes only presentation; boat physics, finishing and ghost recordings are unchanged.
+
+### v0.4.3 — simple two-second lock stop
+
+Restores the original **0.08 m/s (0.18 mph)** stopping threshold, now held for **2 seconds** once the entire boat is in the lock. The position can be anywhere in the chamber, including close to either wall or towards either end; there is **no centre target** and no separate yaw gate. The full hull corners are checked against the walls and gates with a 5 cm rendering/geometry tolerance. Small velocity fluctuations subtract progress rather than erase it. The lock status indicates the threshold and countdown, and the speedometer shows two decimals near the lock so the 0.18 mph limit is clear.
+
+The visual dashed lock centreline was removed to avoid implying a centre target. Boat physics, collisions, routes, best times and ghosts remain unchanged.
