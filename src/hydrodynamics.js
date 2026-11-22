@@ -91,7 +91,7 @@ export function resistanceComponents(u,c,water={}) {
 export function propellerForce(u,throttle,c) {
   const command=clamp(throttle,-1,1);
   if(Math.abs(command)<1e-6)return 0;
-  const n=(c.propellerMaxRps??7.2)*Math.sqrt(Math.abs(command));
+  const n=(c.propellerMaxRps??8.8)*Math.sqrt(Math.abs(command));
   const D=c.propellerDiameter??.52;
   const wake=c.propellerWakeFraction??.15;
   const shaftSign=Math.sign(command);
@@ -99,7 +99,7 @@ export function propellerForce(u,throttle,c) {
   const J=(1-wake)*u/(shaftSign*n*D);
   // Linear approximation to a measured propeller K_T(J) curve,
   // deliberately capped outside its plausible operating envelope.
-  const KT=clamp((c.propellerKT0??.25)-(c.propellerKTSlope??.27)*J,0,.52);
+  const KT=clamp((c.propellerKT0??.29)-(c.propellerKTSlope??.60)*J,0,.52);
   const thrust=(c.waterDensity??1000)*n*n*Math.pow(D,4)*KT;
   const reverse=shaftSign<0?(c.reverseFraction??.55):1;
   return shaftSign*thrust*reverse*(1-(c.thrustDeduction??.05));
