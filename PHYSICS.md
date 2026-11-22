@@ -1,4 +1,4 @@
-# Power Canal physics model (v0.3.1)
+# Power Canal physics model (v0.4.0)
 
 ## Scope and confidence
 
@@ -197,3 +197,9 @@ Stage 02's shallow section has been widened from 7.1 to **8.6 metres**, retainin
 A **0.035 m collision tolerance** now keeps very small hull/bank overlap from applying strong velocity damping every frame. This is a game-specific response to collision sampling, not a hydrodynamic coefficient. Deeper intersections progressively damp vessel velocity and yaw, and impacts still accumulate penalties.
 
 A new deterministic `tests/navigation.test.js` controller uses look-ahead course tracking, the *actual* 3-DOF model and canal width/depth, and the gameplay collision and lock logic to drive each stage end-to-end. For both the classic and test route, it verifies no bank/bridge strikes and a stationary full-hull lock finish. The controller does not ship in the game. This is a regression guard for reachability, not an assumption about how quickly a human can complete the stage.
+
+## v0.4.0 — visual progress and ghost controls
+
+A ghost run is an interpolated, timestamped sequence of previously completed poses, stored per stage with the **adjusted score** (race time plus penalties). It is strictly cosmetic and does not create additional drag, bank effects, rudder interaction or collision penalties. Replays are rendered at the original elapsed race time; the ghost's displayed score may be longer owing to collision penalties. `src/ghost.js` validates recordings and limits memory/storage size. Existing personal bests from versions before ghost recording are retained without synthetic or invented replay data.
+
+The new towpath, field plots, hedges, stone bridges and lock signs affect drawing only, not the force model, local channel depth, bank collision boundaries or lock finish tolerances. A later slow-speed-turn course should be designed around measured turning-circle and yaw tests, rather than adding an arbitrary steering boost.
