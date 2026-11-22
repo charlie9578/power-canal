@@ -4,6 +4,8 @@ import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { BOAT, clamp, createBoat, stepBoat } from '../src/physics.js';
 import { resistanceComponents } from '../src/hydrodynamics.js';
+import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from '../src/ghost.js';
+import { drawFields, drawTowpath, drawStoneBridge } from '../src/scenery.js';
 import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from '../src/water.js';
 import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from '../src/throttle.js';
 import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt,
@@ -17,6 +19,8 @@ const source=readFileSync(new URL('../src/main.js',import.meta.url),'utf8')
 const declaredIds=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));
 const modules={
   BOAT,clamp,createBoat,stepBoat,resistanceComponents,
+  appendGhostFrame,makeGhost,readGhost,saveGhost,shouldReplaceGhost,sampleGhost,
+  drawFields,drawTowpath,drawStoneBridge,
   createWakeMark,pruneWakeMarks,travelAngle,propWashSideOffset,WAKE_LIFETIME,
   clampNotch,throttleFromNotch,notchFromTrackPosition,positionForNotch,labelForNotch,
   START_Y,LOCK,getActiveCourse,setActiveCourse,centreAt,halfWidthAt,waterwayAt,
@@ -38,7 +42,13 @@ function boot(course){
     if(!declaredIds.has(id))return null;
     if(!nodes.has(id)){
       const events={};
-      const classList={add(){},remove(){},toggle(){}};
+      const classes=new Set();
+      const classList={
+        add(name){classes.add(name);},remove(name){classes.delete(name);},
+        toggle(name,force){if(force===undefined? !classes.has(name):force)classes.add(name);
+          else classes.delete(name);return classes.has(name);},
+        contains(name){return classes.has(name);}
+      };
       const e={
         id,style:{},classList,dataset:{},textContent:'',
         addEventListener(name,fn){events[name]=fn;},
@@ -67,6 +77,9 @@ function boot(course){
     ...modules,document,window,URLSearchParams,localStorage:{getItem(){return null;},setItem(){}},
     requestAnimationFrame(fn){frames.push(fn);}
   },{timeout:2000,filename:'src/main.js'});
+  assert.equal(node('gameShell').classList.contains('is-home'),true,'home initially hides game controls');
+  assert.match(node('homeProgress').textContent,/0 \/ 2/);
+  assert.match(node('homeSelectedBest').textContent,/--:--/);
   assert.equal(frames.length,1,'entrypoint should schedule animation');
   frames.shift()(16);
   assert.ok(calls.paint>100,'first frame should paint a canal and boat');
@@ -74,12 +87,16 @@ function boot(course){
   assert.equal(node('stageName').textContent,course==='test'?'The Waterway Lab':'Bridge to Lock');
   const previous=calls.paint;
   node('startButton').__events.click();
+  assert.equal(node('gameShell').classList.contains('is-home'),false,'controls appear only in gameplay');
   for(const tick of [32,48,64,80]){
     assert.ok(frames.length>0);
     frames.shift()(tick);
   }
   assert.ok(calls.paint>previous+100,'gameplay must continue drawing');
   assert.equal(paintStarted,true);
+  node('courseButton').__events.click();
+  assert.equal(node('gameShell').classList.contains('is-home'),true,'course button returns to home');
+  assert.match(node('homeProgress').textContent,/0 \/ 2/);
 }
 
 for(const route of ['classic','test']){
