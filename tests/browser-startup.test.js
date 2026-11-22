@@ -6,6 +6,7 @@ import { BOAT, clamp, createBoat, stepBoat } from '../src/physics.js';
 import { resistanceComponents } from '../src/hydrodynamics.js';
 import { appendGhostFrame, makeGhost, readGhost, saveGhost, shouldReplaceGhost, sampleGhost } from '../src/ghost.js';
 import { drawFields, drawTowpath, drawStoneBridge } from '../src/scenery.js';
+import { updateLockStop, LOCK_STOP } from '../src/lock-stop.js';
 import { createWakeMark, pruneWakeMarks, travelAngle, propWashSideOffset, WAKE_LIFETIME } from '../src/water.js';
 import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from '../src/throttle.js';
 import { START_Y, LOCK, getActiveCourse, setActiveCourse, centreAt, halfWidthAt,
@@ -20,7 +21,7 @@ const declaredIds=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));
 const modules={
   BOAT,clamp,createBoat,stepBoat,resistanceComponents,
   appendGhostFrame,makeGhost,readGhost,saveGhost,shouldReplaceGhost,sampleGhost,
-  drawFields,drawTowpath,drawStoneBridge,
+  drawFields,drawTowpath,drawStoneBridge,updateLockStop,LOCK_STOP,
   createWakeMark,pruneWakeMarks,travelAngle,propWashSideOffset,WAKE_LIFETIME,
   clampNotch,throttleFromNotch,notchFromTrackPosition,positionForNotch,labelForNotch,
   START_Y,LOCK,getActiveCourse,setActiveCourse,centreAt,halfWidthAt,waterwayAt,
@@ -90,6 +91,8 @@ function boot(course){
   assert.ok(calls.paint>100,'first frame should paint a canal and boat');
   assert.match(node('waterInfo').textContent,/DEPTH.*WIDTH/);
   assert.equal(node('stageName').textContent,course==='test'?'The Waterway Lab':'Bridge to Lock');
+  assert.equal(node('lockIndicator').classList.contains('is-hidden'),true,
+    'dock guidance only appears at the lock');
   const previous=calls.paint;
   node('startButton').__events.click();
   assert.equal(node('gameShell').classList.contains('is-home'),false,'controls appear only in gameplay');
@@ -112,6 +115,32 @@ function boot(course){
     tick+=16;
     assert.ok(calls.paint>beforeSection+40,'section '+y+' must render');
   }
+  // Check actual UI feedback for the two previously invisible blockers:
+  // whether the stern is still outside and whether lateral drift is present.
+  vm.runInContext(`
+    boat.x=LOCK.centreX;boat.y=LOCK.startY+3;
+    boat.vx=0;boat.vy=0;boat.yawRate=0;
+    lockState=updateLockStop(boat,0,0,BOAT.length,BOAT.beam);
+    updateUI();
+  `,sandbox);
+  assert.equal(node('lockIndicator').classList.contains('is-hidden'),false);
+  assert.match(node('lockIndicatorText').textContent,/STERN STILL OUTSIDE/);
+  vm.runInContext(`
+    boat.y=(LOCK.startY+LOCK.endY)/2;
+    boat.vx=.2;boat.vy=0;boat.forwardSpeed=0;
+    lockState=updateLockStop(boat,0,0,BOAT.length,BOAT.beam);
+    updateUI();
+  `,sandbox);
+  assert.equal(node('speedDisplay').textContent,'0.4',
+    'speedometer should display sideways drift, not zero');
+  assert.match(node('lockIndicatorText').textContent,/SLOW TO 0.4 MPH/);
+  vm.runInContext(`
+    boat.vx=0;boat.vy=-.1;boat.yawRate=0;
+    lockState=updateLockStop(boat,.6,0,BOAT.length,BOAT.beam);
+    updateUI();
+  `,sandbox);
+  assert.match(node('lockIndicatorText').textContent,/HOLD STILL 50%/);
+  assert.equal(node('lockProgress').style.width,'50%');
   // Exercise finish bookkeeping in the real entrypoint. The physics-based
   // end-to-end lock test is in navigation.test.js; here we call finish
   // directly to verify completion saves the best time and ghost replay.
