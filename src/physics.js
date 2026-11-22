@@ -1,3 +1,4 @@
+import { resistanceComponents, propellerForce, propellerRudderJet } from './hydrodynamics.js';
 /**
  * Power Canal: horizontal-plane manoeuvring dynamics (surge, sway, yaw).
  *
@@ -11,7 +12,9 @@
  * speed limits the tiller/rudder sweep, without an arbitrary actuator delay.
  *
  * These coefficients are engineering estimates, not tank-test-identified
- * derivatives for a particular narrowboat. See PHYSICS.md.
+ * derivatives for a particular narrowboat. Longitudinal forces follow
+ * ITTC friction, a Froude-based wave proxy and Schijf canal-limiting-speed
+ * proximity with a K_T(J) open-water propeller model. See PHYSICS.md.
  */
 export const BOAT=Object.freeze({
   length:14.6,beam:2.08,draft:0.65,mass:14000,
@@ -19,8 +22,23 @@ export const BOAT=Object.freeze({
   surgeAddedMassRatio:0.08,   // added water inertia in surge / mass
   swayAddedMassRatio:0.72,    // added water inertia in sway / mass
   yawAddedInertiaRatio:0.80,  // added moment of inertia / dry yaw inertia
-  engineForce:6200,           // full ahead bollard thrust, approximate
-  reverseFraction:0.55,       // less useful thrust astern
+  // Propeller open-water thrust: rho*n²*D⁴*K_T(J), all estimated values.
+  propellerDiameter:0.52,    // metres
+  propellerMaxRps:7.2,       // full-ahead shaft rev/s (432 shaft rpm)
+  propellerKT0:0.25,         // bollard coefficient
+  propellerKTSlope:0.27,     // K_T(J) linearised approximation
+  propellerWakeFraction:0.15,
+  thrustDeduction:0.05,
+  reverseFraction:0.55,       // astern thrust efficiency estimate
+  propellerRudderJetFactor:0.62,
+  // Resistance separated into skin friction, waves and canal confinement.
+  hullFormFactor:0.30,       // 3-D viscous form correction
+  wettedAreaFactor:1.0,      // box-shaped underwater hull approximation
+  waveCoefficient:0.015,     // empirical residual coefficient at Fn_ref
+  waveReferenceFroude:0.22,
+  midshipSectionFactor:0.96,
+  confinedResistanceGain:8.0,// calibrated multiplier near Schijf speed
+  lowSpeedDrag:80,           // manoeuvring creep drag, N per (m/s)
   dragLinear:650,             // longitudinal viscous resistance N/(m/s)
   dragQuadratic:1660,         // includes wave-making resistance
   crossflowLinear:240,        // lateral drag per metre of hull
@@ -47,14 +65,12 @@ export function bodyVelocity(b){
   const sn=Math.sin(b.heading),cs=Math.cos(b.heading);
   return {u:b.vx*sn-b.vy*cs,v:b.vx*cs+b.vy*sn};
 }
-// Speed-dependent confined-water blockage affects resistance. These are
-// monotone approximations, not an exact restricted-channel squat solver.
+// Diagnostic ratio retained for older analysis scripts; the force model uses
+// the individual resistance components directly, not a drag multiplier.
 export function resistanceFactor(c=BOAT,water=defaultWater){
-  const depth=Math.max(c.draft+0.12,water.depth??defaultWater.depth);
-  const width=Math.max(c.beam+0.5,water.width??defaultWater.width);
-  const blockage=clamp(c.beam*c.draft/(depth*width),0,0.6);
-  const shallowness=c.draft/depth;
-  return 1+1.65*blockage/(1-blockage)+0.23*shallowness*shallowness;
+  const speed=1.5;
+  return resistanceComponents(speed,c,water).total/
+         resistanceComponents(speed,c,{depth:50,width:500}).total;
 }
 // Returns (force, moment) from pressure imbalance beside a bank.
 // bowBank and sternBank: {clearance, side}, where side = +1 starboard,
@@ -84,10 +100,11 @@ export function bodyAccelerations(u,v,r,rudder,throttle,c=BOAT,water=defaultWate
   const I=Iz*(1+c.yawAddedInertiaRatio);
 
   const t=clamp(throttle,-1,1);
-  const thrust=t*c.engineForce*(t<0?c.reverseFraction:1);
-  const resistance=resistanceFactor(c,water);
-  // The reverse gear does not produce a rudder-directed aft jet.
-  const X=thrust-resistance*(c.dragLinear*u+c.dragQuadratic*u*Math.abs(u));
+  const thrust=propellerForce(u,t,c);
+  const drag=resistanceComponents(u,c,water);
+  // Drag opposes velocity; thrust reverses with the propeller shaft.
+  // Wave and canal forces share the same causal model as visual bow waves.
+  const X=thrust-Math.sign(u)*drag.total;
 
   // Distributed hull cross-flow, integrated in strips along the length.
   // Local sideways speed varies with yaw rate: v(x) = v + r*x.
@@ -111,7 +128,7 @@ export function bodyAccelerations(u,v,r,rudder,throttle,c=BOAT,water=defaultWate
   // steering even near zero speed. In reverse that assistance is absent.
   const xr=-L*c.rudderLever;
   const localCross=v+xr*r;
-  const forwardJet=Math.sqrt(Math.max(0,t))*c.propellerJet;
+  const forwardJet=propellerRudderJet(thrust,c);
   const forwardFlow=Math.max(0,u)+forwardJet;
   const reverseFlow=Math.max(0,-u);
   let rudderSide=0;
@@ -134,7 +151,7 @@ export function bodyAccelerations(u,v,r,rudder,throttle,c=BOAT,water=defaultWate
   const uDot=(X+(m+m*c.swayAddedMassRatio)*v*r)/mx;
   const vDot=(Y-(m+m*c.surgeAddedMassRatio)*u*r)/my;
   const rDot=(N+m*(c.surgeAddedMassRatio-c.swayAddedMassRatio)*u*v)/I;
-  return {uDot,vDot,rDot,force:{X,Y,N},rudderSide,resistance};
+  return {uDot,vDot,rDot,force:{X,Y,N},rudderSide,thrust,resistance:drag.total,drag};
 }
 export function stepBoat(b,input,dt,c=BOAT,water=defaultWater){
   if(!(dt>0))return b;
