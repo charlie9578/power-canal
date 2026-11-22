@@ -149,15 +149,39 @@ export function hullSamples(b,length,beam){
   }
   return result;
 }
+// The lock masonry must be solid on ALL courses, including the spatial
+// Stage 03 path. Previously that stage checked only the broad approach,
+// allowing the boat to sit visibly against/through a wall while the narrow
+// lock finish geometry rejected it.
+export function lockWallContact(b,length,beam){
+  const left=LOCK.centreX-LOCK.width/2,right=LOCK.centreX+LOCK.width/2;
+  let depth=0,normalX=0;
+  for(const fore of [-.5,-.25,0,.25,.5]){
+    for(const side of [-.5,0,.5]){
+      const p=pointOnHull(b,side*beam,fore*length);
+      // The chamber begins at the open threshold and ends at the closed
+      // far gate. Outside those y coordinates, canal banks own collisions.
+      if(p.y>LOCK.startY||p.y<LOCK.endY)continue;
+      const outsideLeft=left-p.x,outsideRight=p.x-right;
+      if(outsideLeft>depth){depth=outsideLeft;normalX=1;}
+      if(outsideRight>depth){depth=outsideRight;normalX=-1;}
+    }
+  }
+  return {depth,normalX,normalY:0};
+}
 export function checkBanks(b,length,beam){
-  if(activeCourse.id==='technical')return technicalBankContact(b,length,beam);
+  const lockWall=lockWallContact(b,length,beam);
+  if(activeCourse.id==='technical'){
+    const canal=technicalBankContact(b,length,beam);
+    return lockWall.depth>canal.depth?lockWall:canal;
+  }
   let depth=0,normalX=0;
   for(const p of hullSamples(b,length,beam)){
     const half=halfWidthAt(p.y);
     const excess=Math.abs(p.x-centreAt(p.y))-half;
     if(excess>depth){depth=excess;normalX=Math.sign(centreAt(p.y)-p.x);}
   }
-  return {depth,normalX};
+  return lockWall.depth>depth?lockWall:{depth,normalX,normalY:0};
 }
 // Accept a stopped boat anywhere in the chamber, with no centre target.
 // Full-sized hull corners are tested with 5 cm tolerance for the rounded bow.
