@@ -16,11 +16,11 @@ python3 -m http.server 8000
 
 Open [http://localhost:8000](http://localhost:8000) on your computer. To play from a phone, use your development machine's LAN IP and ensure your firewall permits local connections.
 
-## Home screen, progress and ghost racing (v0.4.3)
+## Home screen, progress and ghost racing (v0.5.0)
 
 The game now opens on a dedicated home screen: the driving deck is hidden until a stage starts, and the home screen displays the **number of completed stages**, **best adjusted time** for the selected course, and course-specific personal bests.
 
-**Ghost replay:** On completion of either stage, the boat's world-space position and heading are sampled approximately every 0.25 seconds. The fastest successfully saved *completed recording* for that stage becomes its transparent cyan ghost boat on subsequent runs. The ghost is drawn as a time-indexed replay, not simulated AI, and doesn't affect water physics or collisions. Toggle it with the **◇** button on the driving deck or **G** on desktop. Ghosts are saved locally in the browser; they are not shared or uploaded. If your best time predates this release, that time is still displayed but has no corresponding replay. The first new completed run establishes a ghost baseline; subsequent faster recorded scores replace it. Because adjusted scores include collision penalties, the visual replay advances in actual elapsed race time while the time displayed for the ghost is the adjusted best score.
+**Ghost replay:** On completion of any stage, the boat's world-space position and heading are sampled approximately every 0.25 seconds. The fastest successfully saved *completed recording* for that stage becomes its transparent cyan ghost boat on subsequent runs. The ghost is drawn as a time-indexed replay, not simulated AI, and doesn't affect water physics or collisions. Toggle it with the **◇** button on the driving deck or **G** on desktop. Ghosts are saved locally in the browser; they are not shared or uploaded. If your best time predates this release, that time is still displayed but has no corresponding replay. The first new completed run establishes a ghost baseline; subsequent faster recorded scores replace it. Because adjusted scores include collision penalties, the visual replay advances in actual elapsed race time while the time displayed for the ghost is the adjusted best score.
 
 **Lock improvements:** The lock is now a distinct stone-walled chamber. It has a conspicuously **open entrance**, visible closed gates at the far end, alignment markings, clear stopping guidance and roadside approach signs. No geometry or finish condition was changed.
 
@@ -28,10 +28,11 @@ The game now opens on a dedicated home screen: the driving deck is hidden until 
 
 ## Select a course
 
-The opening menu now offers two selectable stages:
+The opening menu now offers three selectable stages:
 
 - **01 — Bridge to Lock:** the original winding narrowboat time trial, unchanged in layout.
-- **02 — The Waterway Lab:** a longer engineering test course with navigable S-bends, deep/broad reaches, shallow/narrow sections, a **stone aqueduct**, a brick-lined cutting, two bridges and a lock finish. The 48-foot narrowboat is unchanged: it is the *waterway* that varies.
+- **02 — The Waterway Lab:** a longer engineering test course with navigable S-bends, deep/broad reaches, shallow/narrow sections, a **stone aqueduct**, a brick-lined cutting, two bridges and a lock finish.
+- **03 — The Winding Hole:** a straight approach, narrow braking stretch, a sudden dogleg across a broad stone-lined winding hole, a projecting **stone wharf** that blocks an over-wide exit line, and a narrow brick cutting leading to a separate lock. Slow down well before the turn, then use the tiller and short ahead-power bursts to steer around the quay. This is the first course specifically designed around low-speed propeller-wash steering. The 48-foot narrowboat is unchanged: it is the *waterway* that varies.
 
 The conditions display shows the current **nominal channel width and depth**. These quantities feed the Schijf-based resistance calculation and shore effects, so this is a real handling and speed test, not just different paint. Bank construction changes the visuals; stone, brick and earth do not yet have separately identified hydrodynamic coefficients. All geometry is fictional and dimensions are exploratory, not a surveyed canal.
 
@@ -73,7 +74,7 @@ The fixed-timestep dynamics model in `src/physics.js` now uses a coupled **surge
 - `src/scenery.js`: deterministic fields, towpaths and stone bridge rendering.
 - `src/steering-analysis.js`: Nomoto gain, zeros and poles.
 - `PHYSICS.md`: engineering notes, model derivation and calibration plan.
-- `src/course.js`: two fictional canal layouts, section widths/depths, bank styles, bridges, aqueduct and lock geometry.
+- `src/course.js`: three fictional canal layouts, section widths/depths, bank styles, bridges, aqueduct, stone wharf and lock geometry.
 - `src/main.js`: canvas rendering, collision/penalty rules, touch/keyboard input, simulation loop and timing.
 - `src/water.js`: movement-aligned, world-space wake samples and their lifetimes.
 - `src/throttle.js`: 11-position combined throttle and reverse lever.
@@ -81,7 +82,8 @@ The fixed-timestep dynamics model in `src/physics.js` now uses a coupled **surge
 - `tests/browser-startup.test.js`: browser entrypoint and home layout smoke tests.
 - `tests/ghost.test.js`: replay serialization, interpolation, and stage isolation.
 - `tests/lock-stop.test.js`: docking edge cases including lingering drift, sideways motion and yaw.
-- `tests/navigation.test.js`: complete physics-based drive-throughs of both courses, including bridges and stopping inside the locks.
+- `tests/navigation.test.js`: full physics-based drive-throughs of the two original courses, including bridges and stopping inside the locks.
+- `tests/technical-navigation.test.js`: full Stage 03 drive-through with deliberate braking and thrust pulses, including a fast-corner wharf-collision comparison.
 - `tests/physics.test.js`: handling tests.
 - `tests/hydrodynamics.test.js`: friction, waves, restricted-water and propeller tests.
 - `tests/steering.test.js`: propeller trim and Nomoto model analysis tests.
@@ -93,7 +95,7 @@ Run tests with `npm test` (requires modern Node.js; only the tests need Node).
 1. Calibrate propeller RPM/thrust, straight-line power, stopping, zigzag, and turning curves using real narrowboat trials.
 2. Improve bank geometry, return-flow and squat estimates, and validate bow waves against restricted-water trials.
 3. Add a second boat with approximation-based pressure interaction for overtaking.
-4. Design an advanced stage with tight turnings or winding holes that require slowing and using short pulses of ahead thrust and counter-tiller; validate physical reachability before release.
+4. Tune the new winding-hole stage with actual player feedback, then add further advanced turning challenges with different lock geometry.
 5. Improve scenery variety (towpath junctions, livestock, buildings, moorings) while retaining inexpensive 2D canvas rendering.
 
 ## Design goal
@@ -131,3 +133,11 @@ The always-visible floating `Follow the canal · watch your stern` message has b
 Restores the original **0.08 m/s (0.18 mph)** stopping threshold, now held for **2 seconds** once the entire boat is in the lock. The position can be anywhere in the chamber, including close to either wall or towards either end; there is **no centre target** and no separate yaw gate. The full hull corners are checked against the walls and gates with a 5 cm rendering/geometry tolerance. Small velocity fluctuations subtract progress rather than erase it. The lock status indicates the threshold and countdown, and the speedometer shows two decimals near the lock so the 0.18 mph limit is clear.
 
 The visual dashed lock centreline was removed to avoid implying a centre target. Boat physics, collisions, routes, best times and ghosts remain unchanged.
+
+### v0.5.0 — Stage 03: The Winding Hole
+
+A third, independently timed stage now presents a challenging dogleg in a widened stone-lined winding hole. The approach is **10 m wide and 1.25 m deep**, the winding hole opens out to **27 m wide and 2.05 m deep**, and the narrow exit is **9.5 m wide**. A clearly drawn stone wharf physically projects into the hole from the outside bank. This obstacle is tested against hull samples and reacts with the same momentum loss as bank collisions, with a penalty for significant impacts. The turn has a local centreline curvature radius near **7 m**, much sharper than the 48-foot boat's ordinary cruising-speed turning circle; players are encouraged to brake and use short ahead-thrust pulses with substantial tiller deflection.
+
+The stage includes an early warning sign, a winding-hole manoeuvring sign, an exit marker and its own relocated lock. The unchanged boat physics is used throughout, and the new level has its own locally stored best score and optional best-run ghost. An automated, *test-only* helm completes the stage by controlling speed around 0.5 m/s and applying bursts of ahead power through the winding hole without bank, wharf or bridge contact; a representative flat-out, late-turn attempt collides with the wharf. A particularly skilful high-speed path may still succeed; this is a handling challenge, not an artificial speed restriction or enforced speed gate.
+
+Only Stage 03 has been added; the geometry and scoring of Stages 01 and 02 have not been changed.
