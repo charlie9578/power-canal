@@ -111,3 +111,21 @@ export function propellerRudderJet(thrust,c) {
   return (c.propellerRudderJetFactor??.62)*
          Math.sqrt(thrust/((c.waterDensity??1000)*disc));
 }
+
+/**
+ * Forward throttle giving steady straight-line thrust = resistance.
+ * Returns null when the specified speed cannot be sustained at full ahead.
+ * Applies no arbitrary mph cap; the propeller and drag curves intersect.
+ */
+export function trimThrottle(speed,c,water={}) {
+  if(speed<=0)return 0;
+  const demand=resistanceComponents(speed,c,water).total;
+  if(propellerForce(speed,1,c)<demand)return null;
+  let low=0,high=1;
+  for(let i=0;i<45;i++){
+    const t=(low+high)/2;
+    if(propellerForce(speed,t,c)<demand)low=t;
+    else high=t;
+  }
+  return (low+high)/2;
+}
