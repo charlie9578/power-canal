@@ -91,8 +91,11 @@ test('propeller wash tracks physical rudder travel, while the boat retains yaw i
   assert.ok(rightWash<0);
   const priorHeading=b.heading;
   stepBoat(b,{throttle:1,tiller:-1},1/60);
-  assert.ok(b.rudder>0,'rudder takes finite time to reverse direction');
-  assert.ok(propWashSideOffset(b.rudder,b.throttle,4)<0,'wash follows physical rudder until it crosses centre');
+  assert.ok(Math.abs(b.rudder)<1e-10,'rudder moves through centre, not full opposite lock in one frame');
+  assert.equal(propWashSideOffset(b.rudder,b.throttle,4),0,'wash follows the actual rudder at centre');
+  stepBoat(b,{throttle:1,tiller:-1},1/60);
+  assert.ok(b.rudder<0 && b.rudder>-BOAT.maxRudder,'rudder continues to opposite lock at finite speed');
+  assert.ok(propWashSideOffset(b.rudder,b.throttle,4)>0,'wash follows physical rudder after centre');
   assert.ok(Math.abs(b.heading-priorHeading)<.01,'boat heading retains inertia');
 });
 
