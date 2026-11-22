@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBoat, BOAT } from '../src/physics.js';
-import { LOCK, setActiveCourse, getActiveCourse } from '../src/course.js';
+import { LOCK, setActiveCourse, getActiveCourse, insideLock } from '../src/course.js';
 import { LOCK_STOP, updateLockStop } from '../src/lock-stop.js';
 
 function inRoute(route,fn){
@@ -9,78 +9,81 @@ function inRoute(route,fn){
   setActiveCourse(route);
   try{return fn();}finally{setActiveCourse(previous);}
 }
-function atMiddle(){
-  return createBoat(LOCK.centreX,(LOCK.startY+LOCK.endY)/2,0);
+function atLock(x=LOCK.centreX,y=(LOCK.startY+LOCK.endY)/2,heading=0){
+  return createBoat(x,y,heading);
 }
-function runHold(boat,seconds,initial=0){
-  let result=updateLockStop(boat,initial,0,BOAT.length,BOAT.beam);
-  for(let n=0;n<Math.round(seconds*60);n++){
-    result=updateLockStop(boat,result.hold,1/60,BOAT.length,BOAT.beam);
+function runHold(b,seconds,initial=0){
+  let result=updateLockStop(b,initial,0,BOAT.length,BOAT.beam);
+  for(let i=0;i<Math.round(seconds*60);i++){
+    result=updateLockStop(b,result.hold,1/60,BOAT.length,BOAT.beam);
   }
   return result;
 }
 
+test('stopping at 0.18 mph needs two full seconds',()=>{
+  assert.equal(LOCK_STOP.maxSpeed,.08);
+  assert.equal(LOCK_STOP.holdSeconds,2);
+  const b=atLock();b.vy=-.079;
+  assert.equal(runHold(b,1.99).complete,false);
+  const r=runHold(b,2.01);
+  assert.equal(r.complete,true);
+  assert.equal(r.progress,1);
+  b.vy=-.081;
+  assert.equal(runHold(b,4).complete,false);
+});
+
 for(const course of ['classic','test']){
-  test(course+': visually stopped boat completes even when coasting above former strict threshold',()=>inRoute(course,()=>{
-    const b=atMiddle();
-    b.vy=-.12; b.forwardSpeed=.12;
-    const result=runHold(b,1.3);
-    assert.equal(result.inside,true);
-    assert.equal(result.stable,true);
-    assert.equal(result.complete,true);
-    assert.equal(result.status,'complete');
-    assert.equal(result.progress,1);
+  test(course+': boat need not be centred side-to-side or lengthwise',()=>inRoute(course,()=>{
+    // Exact full-hull corners, without a requirement to target lock centre.
+    for(const x of [LOCK.centreX-1.20,LOCK.centreX,LOCK.centreX+1.20]){
+      for(const y of [LOCK.startY-7.55,(LOCK.startY+LOCK.endY)/2,LOCK.endY+7.55]){
+        const b=atLock(x,y);
+        b.vx=.05;b.yawRate=.033; // even mild rotation is allowed
+        assert.equal(insideLock(b,BOAT.length,BOAT.beam),true,
+          'valid off-centre hull must fit for '+course);
+        const result=runHold(b,2.05);
+        assert.equal(result.complete,true);
+      }
+    }
   }));
-  test(course+': entire boat must be within lock geometry',()=>inRoute(course,()=>{
-    const b=createBoat(LOCK.centreX,LOCK.startY+3,0);
+
+  test(course+': at least the whole boat must fit within the walls and gate',()=>inRoute(course,()=>{
+    const b=atLock(LOCK.centreX,LOCK.startY+2);
     const result=runHold(b,4);
-    assert.equal(result.inside,false);
     assert.equal(result.complete,false);
-    assert.equal(result.progress,0);
     assert.equal(result.status,'entrance');
-    b.y=(LOCK.startY+LOCK.endY)/2;
-    const holding=runHold(b,.6);
-    assert.equal(holding.inside,true);
-    assert.ok(holding.progress>.4);
-    assert.equal(holding.complete,false);
-    b.y=LOCK.endY+3;
-    const beyond=updateLockStop(b,holding.hold,1/60,BOAT.length,BOAT.beam);
-    assert.equal(beyond.inside,false);
+    assert.equal(result.progress,0);
+
+    b.y=LOCK.endY+2;
+    const beyond=runHold(b,3);
     assert.equal(beyond.status,'far-gate');
-    assert.equal(beyond.progress,0);
+    assert.equal(beyond.complete,false);
+
+    b.y=(LOCK.startY+LOCK.endY)/2;b.x=LOCK.centreX+1.5;
+    assert.equal(insideLock(b,BOAT.length,BOAT.beam),false);
+    const outside=runHold(b,4);
+    assert.equal(outside.status,'side-wall');
+    assert.equal(outside.complete,false);
   }));
 }
-
-test('the full ground-speed vector matters, not just longitudinal speed',()=>inRoute('classic',()=>{
-  const b=atMiddle();
-  b.forwardSpeed=0;b.vx=.2;b.vy=0;
-  const result=runHold(b,2);
-  assert.equal(result.inside,true);
-  assert.equal(result.speedOk,false);
-  assert.equal(result.status,'moving');
-  assert.equal(result.complete,false);
-  b.vx=0;b.yawRate=.052;
-  const turning=runHold(b,2);
-  assert.equal(turning.status,'turning');
-  assert.equal(turning.complete,false);
+test('ground-speed including lateral drift is enforced, independent of heading',()=>inRoute('classic',()=>{
+  const b=atLock();
+  b.forwardSpeed=0;b.vx=.09;b.vy=0;b.yawRate=0;
+  assert.equal(runHold(b,3).status,'moving');
+  assert.equal(runHold(b,3).complete,false);
+  b.vx=.03;b.yawRate=.05;
+  assert.equal(runHold(b,2.1).complete,true,
+    'yaw alone is not a reason to reject a hull that fits in the chamber');
 }));
-
-test('minor residual oscillation decays, instead of resetting an almost completed hold',()=>inRoute('classic',()=>{
-  const b=atMiddle();b.vy=-.12;
-  const started=runHold(b,.9);
-  assert.ok(started.progress>.65);
-  b.vy=-.18;
-  const interrupted=runHold(b,.12,started.hold);
-  assert.ok(interrupted.progress>.5,'temporary overspeed should preserve some progress');
-  b.vy=-.10;
-  assert.equal(runHold(b,1.0,interrupted.hold).complete,true);
-  b.vy=-.8;
-  const moving=updateLockStop(b,started.hold,1/60,BOAT.length,BOAT.beam);
-  assert.equal(moving.progress,0,'significant motion resets progress');
+test('a brief borderline speed spike only reduces accumulated progress',()=>inRoute('classic',()=>{
+  const b=atLock();b.vy=-.06;
+  const started=runHold(b,1.5);
+  assert.ok(started.progress>.7);
+  b.vy=-.09;
+  const interrupted=runHold(b,.15,started.hold);
+  assert.ok(interrupted.progress>.5);
+  b.vy=-.05;
+  assert.equal(runHold(b,1.5,interrupted.hold).complete,true);
+  b.vy=-.9;
+  assert.equal(updateLockStop(b,started.hold,1/60,BOAT.length,BOAT.beam).progress,0);
 }));
-
-test('docking limits remain slower than normal cruising, with heading control',()=>{
-  assert.ok(LOCK_STOP.maxSpeed<.2);
-  assert.ok(LOCK_STOP.maxYawRate<.05);
-  assert.ok(LOCK_STOP.holdSeconds>=1);
-});
