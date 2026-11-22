@@ -363,18 +363,27 @@ function drawCanal(){
   drawLock();
 }
 function drawLock(){
-  const top=LOCK.startY,bot=LOCK.endY;
   const l=LOCK.centreX-LOCK.width/2,r=LOCK.centreX+LOCK.width/2;
-  const a=project(l,top),b=project(r,bot);
-  if(a.y>height+80||b.y< -80)return;
-  const length=(top-bot)*scale;
-  ctx.fillStyle='#5b939f';ctx.fillRect(a.x,a.y,(r-l)*scale,length);
-  ctx.fillStyle='#b4a890';ctx.fillRect(a.x-8,a.y-8,8,length+18);ctx.fillRect(b.x,a.y-8,8,length+18);
-  ctx.fillStyle='#5b5043';ctx.fillRect(a.x-10,a.y-8,(r-l)*scale+20,9);
-  ctx.fillStyle='#856b50';ctx.fillRect(a.x-8,b.y-1,(r-l)*scale+16,10);
-  ctx.strokeStyle='#dcd1ad';ctx.lineWidth=2;ctx.strokeRect(a.x,a.y,(r-l)*scale,length);
+  const entrance=project(l,LOCK.startY);
+  const farGate=project(r,LOCK.endY);
+  const upper=Math.min(entrance.y,farGate.y);
+  const lower=Math.max(entrance.y,farGate.y);
+  if(upper>height+80||lower< -80)return;
+  const length=lower-upper;
+  // World y decreases towards the bow; use the *screen* top rather than
+  // assuming LOCK.startY draws above LOCK.endY.
+  ctx.fillStyle='#5b939f';ctx.fillRect(entrance.x,upper,(r-l)*scale,length);
+  ctx.fillStyle='#b4a890';
+  ctx.fillRect(entrance.x-8,upper-8,8,length+18);
+  ctx.fillRect(farGate.x,upper-8,8,length+18);
+  ctx.fillStyle='#5b5043';
+  ctx.fillRect(entrance.x-10,entrance.y-8,(r-l)*scale+20,9);
+  ctx.fillStyle='#856b50';
+  ctx.fillRect(entrance.x-8,farGate.y-1,(r-l)*scale+16,10);
+  ctx.strokeStyle='#dcd1ad';ctx.lineWidth=2;
+  ctx.strokeRect(entrance.x,upper,(r-l)*scale,length);
   ctx.fillStyle='#f5ebc8';ctx.font='bold 11px DM Sans';ctx.textAlign='center';
-  ctx.fillText('LOCK · STOP', (a.x+b.x)/2, a.y+Math.min(45,length*.35));
+  ctx.fillText('LOCK · STOP', (entrance.x+farGate.x)/2,upper+Math.min(45,length*.35));
 }
 function waveStroke(points,opacity=1,lineWidth=1.5){
   if(points.length<2)return;
