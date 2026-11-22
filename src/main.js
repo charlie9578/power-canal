@@ -1,7 +1,7 @@
-import { BOAT, clamp, createBoat, stepBoat } from './physics.js';
-import { createWakeMark, pruneWakeMarks, travelAngle, WAKE_LIFETIME } from './water.js';
-import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js';
-import { WIDTH, START_Y, LOCK, centreAt, halfWidthAt, checkBanks, insideLock, pointOnHull } from './course.js';
+import { BOAT, clamp, createBoat, stepBoat } from './physics.js?v=20261122-2';
+import { createWakeMark, pruneWakeMarks, travelAngle, WAKE_LIFETIME } from './water.js?v=20261122-2';
+import { clampNotch, throttleFromNotch, notchFromTrackPosition, positionForNotch, labelForNotch } from './throttle.js?v=20261122-2';
+import { WIDTH, START_Y, LOCK, centreAt, halfWidthAt, checkBanks, insideLock, pointOnHull } from './course.js?v=20261122-2';
 
 const $=id=>document.getElementById(id);
 const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
